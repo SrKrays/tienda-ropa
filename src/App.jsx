@@ -1,4 +1,4 @@
-import { Suspense, lazy, useCallback, useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import TopBar from './components/TopBar.jsx'
 import RackStage from './components/RackStage.jsx'
 
@@ -8,7 +8,7 @@ const loadCheckout = () => import('./components/CheckoutSheet.jsx')
 const ProductSheet = lazy(loadProduct)
 const CheckoutSheet = lazy(loadCheckout)
 import BottomBar from './components/BottomBar.jsx'
-import { CATEGORIES, PRODUCTS } from './data/products.js'
+import { HEADLINES, PRODUCTS } from './data/products.js'
 
 export default function App() {
   const [category, setCategory] = useState('todo')
@@ -37,9 +37,9 @@ export default function App() {
     () => (category === 'todo' ? PRODUCTS : PRODUCTS.filter((p) => p.categories.includes(category))),
     [category]
   )
-  const title = CATEGORIES.find((c) => c.id === category)?.label
-  const select = useCallback((p, side = 'front') => {
-    setSel({ product: p, side: p.back ? side : 'front' })
+  const apiRef = useRef(null)
+  const select = useCallback((p, side = 'front', pick) => {
+    setSel({ product: p, side: p.back ? side : 'front', size: pick?.size, color: pick?.color })
     setProductOpen(true)
   }, [])
 
@@ -52,10 +52,11 @@ export default function App() {
           products={products}
           onSelect={select}
           frozen={productOpen || cartOpen}
-          title={category === 'todo' ? 'Toda la colección' : title}
+          headline={HEADLINES[category]}
+          apiRef={apiRef}
         />
       </main>
-      <BottomBar onOpenCart={() => setCartOpen(true)} />
+      <BottomBar onOpenCart={() => setCartOpen(true)} onExplore={() => apiRef.current?.explore()} />
       <Suspense fallback={null}>
         {(usedProduct || productOpen) && (
           <ProductSheet

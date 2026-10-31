@@ -9,6 +9,12 @@ npm install
 npm run dev
 ```
 
+## Estética (v3 · vidriera)
+
+- La prenda del centro es la protagonista: más grande, con luz de spot; las de los costados giran 3/4 (perspectiva falsa sobre la malla), se achican y quedan en penumbra.
+- Recorrido automático: avanza de a una prenda y espera unos segundos. Elegir talle, color o dar vuelta la prenda lo frena; las flechas, el arrastre o tocar una prenda del costado lo retoman.
+- Percha y perchero son fotos reales recortadas (`public/img/ui/`). El caño se estira a lo ancho; los postes se arman con codo + tramo + base.
+
 ## Dónde está cada cosa
 
 - `src/rack/Garment.js` — una prenda: malla, física (péndulo + flexión de tela + ondulación), sombra, percha y etiqueta.

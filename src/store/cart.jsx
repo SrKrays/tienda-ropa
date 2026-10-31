@@ -5,10 +5,11 @@ const CartCtx = createContext(null)
 function reducer(state, action) {
   switch (action.type) {
     case 'add': {
-      const key = action.product.id + '-' + action.size
+      const color = action.color || null
+      const key = action.product.id + '-' + action.size + (color ? '-' + color.id : '')
       const found = state.find((l) => l.key === key)
       if (found) return state.map((l) => (l.key === key ? { ...l, qty: l.qty + action.qty } : l))
-      return [...state, { key, product: action.product, size: action.size, qty: action.qty }]
+      return [...state, { key, product: action.product, size: action.size, color, qty: action.qty }]
     }
     case 'qty':
       return state

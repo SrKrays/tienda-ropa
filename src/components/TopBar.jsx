@@ -7,7 +7,7 @@ export default function TopBar({ category, onCategory, onOpenCart }) {
   return (
     <header className="topbar">
       <a className="brand" href="/" aria-label="[MARCA] — inicio">
-        [MARCA]
+        <img src="/img/ui/logo.png" alt="[MARCA]" width="107" height="32" />
       </a>
       <nav className="cats" aria-label="Categorías">
         {CATEGORIES.map((c) => (

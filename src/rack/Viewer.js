@@ -1,5 +1,5 @@
-import { Application, Graphics } from 'pixi.js'
-import { Garment } from './Garment.js'
+import { Application, Assets, TilingSprite } from 'pixi.js'
+import { Garment, HANGER_K } from './Garment.js'
 import { loadTextures, renderQuality } from './Rack.js'
 
 // Vista grande de una prenda en el panel: misma tela con física,
@@ -33,7 +33,10 @@ class ViewerApp {
         this.app = app
         app.canvas.setAttribute('aria-hidden', 'true')
         app.canvas.style.display = 'block'
-        this.rod = new Graphics()
+        await Assets.load(['/img/ui/percha.png', '/img/ui/rack-rod.png'])
+        this.hangerTex = Assets.get('/img/ui/percha.png')
+        this.rodTex = Assets.get('/img/ui/rack-rod.png')
+        this.rod = new TilingSprite({ texture: this.rodTex, width: 10, height: 10 })
         app.stage.addChild(this.rod)
         app.stage.eventMode = 'static'
         app.stage.on('pointermove', (e) => {
@@ -100,19 +103,19 @@ class ViewerApp {
     this.g?.destroy()
     const W = this._w
     const H = this._h
-    const rodY = 34
+    const rodY = 30
     const ar = this.textures.front.width / this.textures.front.height
-    const gh = Math.max(80, Math.min(H - rodY - 40, (W - 40) / ar))
-    const gw = gh * ar
-    this.rod
-      .clear()
-      .rect(W / 2 - gw * 0.55, rodY - 4, gw * 1.1, 8)
-      .fill(0x24221e)
-      .rect(W / 2 - gw * 0.55, rodY - 3, gw * 1.1, 2)
-      .fill({ color: 0xa79f8f, alpha: 0.55 })
-    this.g = new Garment({ textures: this.textures, side, width: gw, height: gh, reducedMotion: this.reduced })
+    let gw = Math.min(W - 60, (H - rodY - 30) / (1 / ar + HANGER_K))
+    gw = Math.max(80, gw)
+    const gh = gw / ar
+    const rodH = 11
+    this.rod.width = Math.min(W, gw * 1.5)
+    this.rod.height = rodH
+    this.rod.tileScale.set(rodH / this.rodTex.height)
+    this.rod.position.set((W - this.rod.width) / 2, rodY - rodH / 2)
+    this.g = new Garment({ textures: this.textures, hanger: this.hangerTex, side, width: gw, height: gh, reducedMotion: this.reduced })
     this.g.view.position.set(W / 2, rodY)
-    this.app.stage.addChildAt(this.g.view, 0)
+    this.app.stage.addChild(this.g.view)
     this.g.impulse(0.4)
   }
 

@@ -4,60 +4,123 @@ import { useCart } from '../store/cart.jsx'
 import Sheet from './Sheet.jsx'
 import { CheckIcon, WhatsIcon } from './icons.jsx'
 
-// Como en Bruzz: no hay pago online ni envíos. El pedido se arma acá
-// y llega directo al WhatsApp del local, que coordina el pago y la entrega.
+// Igual que en Bruzz: no hay pago online. El pedido se arma acá con todos los datos
+// y llega directo al WhatsApp del local, listo para preparar.
 
+const STORE_NAME = '[MARCA]'
 const STEPS = ['Tu carrito', 'Tus datos', 'Enviar pedido']
 
-const PAYMENTS = [
-  { id: 'Transferencia', text: 'Te pasamos el alias por WhatsApp.' },
-  { id: 'Efectivo', text: 'Pagás en el local.' },
-  { id: 'Mercado Pago', text: 'Te mandamos el link de pago.' },
+// Todo se coordina por WhatsApp: acá la persona solo cuenta qué prefiere
+const DELIVERY = [
+  { id: 'retiro', title: 'Retiro en el local', text: 'Te pasamos la dirección y el horario por WhatsApp.' },
+  { id: 'envio', title: 'Envío a domicilio', text: 'El costo y el día de entrega los coordinamos por WhatsApp.' },
 ]
 
-function buildMessage(lines, total, data) {
-  const items = lines
-    .map((l) => `• ${l.qty} x ${l.product.name} — talle ${l.size} — ${formatPrice(l.product.price * l.qty)}`)
-    .join('\n')
+const PAYMENTS = [
+  { id: 'transferencia', title: 'Transferencia', text: 'Te pasamos el alias por WhatsApp.' },
+  { id: 'efectivo', title: 'Efectivo', text: 'Pagás al retirar o al recibir.' },
+  { id: 'mercadopago', title: 'Mercado Pago', text: 'Te mandamos el link de pago por WhatsApp.' },
+]
+
+const fecha = () => {
+  const d = new Date()
+  const p = (n) => String(n).padStart(2, '0')
+  return `${p(d.getDate())}/${p(d.getMonth() + 1)} ${p(d.getHours())}:${p(d.getMinutes())}`
+}
+
+const colorOf = (l) => (l.color && l.product.colors?.length > 1 ? l.color.name.toLowerCase() : null)
+
+// Formato simple para quien atiende, como el de Bruzz:
+//   *PEDIDO [MARCA]* · 31/10 18:07
+//   Rosa Pérez · 351 123 4567
+//   *retira* en el local
+//   pago: transferencia
+//
+//   *1x CAMISETA BELGRANO* — $ 54.900
+//     talle M · celeste
+//
+//   *TOTAL: $ 54.900*
+export function buildMessage(lines, total, data) {
+  const items = lines.map((l) => {
+    const det = [`talle ${l.size}`, colorOf(l)].filter(Boolean).join(' · ')
+    return `*${l.qty}x ${l.product.name.toUpperCase()}* — ${formatPrice(l.product.price * l.qty)}\n  ${det}`
+  })
+  const pago = PAYMENTS.find((p) => p.id === data.payment)?.title.toLowerCase()
+  const entrega =
+    data.delivery === 'envio'
+      ? `*envío* a domicilio${data.address.trim() ? ': ' + data.address.trim() + (data.city.trim() ? ', ' + data.city.trim() : '') : ' (dirección a coordinar)'}`
+      : '*retira* en el local'
   return [
-    '¡Hola! Quiero hacer este pedido 🛍️',
+    `*PEDIDO ${STORE_NAME}* · ${fecha()}`,
+    `${data.name.trim()} · ${data.phone.trim()}`,
+    entrega,
+    `pago: ${pago}`,
     '',
-    items,
+    items.join('\n\n'),
+    data.note.trim() ? `\nnota: ${data.note.trim()}` : null,
     '',
-    `*Total: ${formatPrice(total)}*`,
-    '',
-    `Nombre: ${data.name.trim()}`,
-    `Pago: ${data.payment}`,
-    data.note.trim() ? `Nota: ${data.note.trim()}` : null,
+    data.delivery === 'envio' ? `*TOTAL: ${formatPrice(total)}* (+ envío a coordinar)` : `*TOTAL: ${formatPrice(total)}*`,
   ]
     .filter((l) => l !== null)
     .join('\n')
+}
+
+function Options({ name, list, value, onChange, legend }) {
+  return (
+    <fieldset className="options-fs">
+      <legend className="field-label">{legend}</legend>
+      <div className="options">
+        {list.map((o) => (
+          <label key={o.id} className={'option' + (value === o.id ? ' is-on' : '')}>
+            <input type="radio" name={name} value={o.id} checked={value === o.id} onChange={() => onChange(o.id)} />
+            <span>
+              <strong>{o.title}</strong>
+              <small>{o.text}</small>
+            </span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  )
 }
 
 export default function CheckoutSheet({ open, onClose }) {
   const { lines, count, total, dispatch } = useCart()
   const [step, setStep] = useState(0)
   const [done, setDone] = useState(false)
-  const [data, setData] = useState({ name: '', payment: 'Transferencia', note: '' })
-  const [error, setError] = useState('')
+  const [data, setData] = useState({
+    name: '',
+    phone: '',
+    delivery: 'retiro',
+    address: '',
+    city: '',
+    payment: 'transferencia',
+    note: '',
+  })
+  const [errors, setErrors] = useState({})
 
   useEffect(() => {
     if (open) {
       setStep(0)
       setDone(false)
-      setError('')
+      setErrors({})
     }
   }, [open])
 
+  const set = (k) => (e) => setData((d) => ({ ...d, [k]: typeof e === 'string' ? e : e.target.value }))
   const message = useMemo(() => buildMessage(lines, total, data), [lines, total, data])
   const waHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`
 
+  const validate = () => {
+    const e = {}
+    if (!data.name.trim()) e.name = 'Escribí tu nombre'
+    if (data.phone.replace(/\D/g, '').length < 8) e.phone = 'Escribí un teléfono para poder contactarte'
+    setErrors(e)
+    return Object.keys(e).length === 0
+  }
+
   const next = () => {
-    if (step === 1 && !data.name.trim()) {
-      setError('Escribí tu nombre así sabemos de quién es el pedido')
-      return
-    }
-    setError('')
+    if (step === 1 && !validate()) return
     setStep(step + 1)
   }
 
@@ -74,7 +137,7 @@ export default function CheckoutSheet({ open, onClose }) {
             <CheckIcon />
           </span>
           <h2>¡Listo, {data.name.trim().split(' ')[0]}!</h2>
-          <p>Se abrió WhatsApp con tu pedido. Solo tenés que tocar enviar y te respondemos para coordinar el pago y la entrega.</p>
+          <p>Se abrió WhatsApp con tu pedido. Solo tenés que tocar enviar y te respondemos para confirmar.</p>
           <a className="btn-ghost wa" href={waHref} target="_blank" rel="noreferrer">
             <WhatsIcon /> No se abrió, volver a intentar
           </a>
@@ -106,7 +169,7 @@ export default function CheckoutSheet({ open, onClose }) {
                 (lines.length === 0 ? (
                   <div className="empty">
                     <h2>Tu carrito está vacío</h2>
-                    <p>Tocá una prenda del perchero para verla y agregarla.</p>
+                    <p>Elegí un talle debajo de la prenda y tocá Agregar.</p>
                     <button type="button" className="btn-primary" onClick={onClose}>
                       Ver prendas
                     </button>
@@ -118,7 +181,10 @@ export default function CheckoutSheet({ open, onClose }) {
                         <img src={l.product.front} alt="" width="88" height="84" />
                         <div className="line-info">
                           <strong>{l.product.name}</strong>
-                          <span>Talle {l.size}</span>
+                          <span>
+                            Talle {l.size}
+                            {colorOf(l) ? ' · ' + l.color.name : ''}
+                          </span>
                           <span className="line-price">{formatPrice(l.product.price * l.qty)}</span>
                         </div>
                         <div className="line-actions">
@@ -142,39 +208,41 @@ export default function CheckoutSheet({ open, onClose }) {
 
               {step === 1 && (
                 <div className="form">
-                  <h2>¿A nombre de quién?</h2>
+                  <h2>Tus datos para el pedido</h2>
+                  <p className="coord-note">
+                    <WhatsIcon /> No pagás nada acá: con tu pedido te escribimos por WhatsApp para coordinar el pago y la entrega.
+                  </p>
                   <label className="field">
                     <span className="field-label">Nombre y apellido</span>
-                    <input value={data.name} onChange={(e) => setData({ ...data, name: e.target.value })} autoComplete="name" />
+                    <input value={data.name} onChange={set('name')} autoComplete="name" />
                   </label>
-                  {error && (
-                    <p className="warn" role="alert">
-                      {error}
-                    </p>
-                  )}
-                  <fieldset className="options-fs">
-                    <legend className="field-label">¿Cómo preferís pagar?</legend>
-                    <div className="options">
-                      {PAYMENTS.map((p) => (
-                        <label key={p.id} className={'option' + (data.payment === p.id ? ' is-on' : '')}>
-                          <input
-                            type="radio"
-                            name="payment"
-                            value={p.id}
-                            checked={data.payment === p.id}
-                            onChange={() => setData({ ...data, payment: p.id })}
-                          />
-                          <span>
-                            <strong>{p.id}</strong>
-                            <small>{p.text}</small>
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
+                  {errors.name && <p className="warn">{errors.name}</p>}
                   <label className="field">
-                    <span className="field-label">¿Algo más que nos quieras decir? (opcional)</span>
-                    <input value={data.note} onChange={(e) => setData({ ...data, note: e.target.value })} placeholder="Ej: lo paso a buscar el sábado" />
+                    <span className="field-label">Teléfono</span>
+                    <input value={data.phone} onChange={set('phone')} inputMode="tel" autoComplete="tel" placeholder="Ej: 351 123 4567" />
+                  </label>
+                  {errors.phone && <p className="warn">{errors.phone}</p>}
+
+                  <Options name="delivery" legend="¿Cómo lo recibís?" list={DELIVERY} value={data.delivery} onChange={set('delivery')} />
+                  {data.delivery === 'envio' && (
+                    <>
+                      <label className="field">
+                        <span className="field-label">Dirección (opcional, también la podés pasar por WhatsApp)</span>
+                        <input value={data.address} onChange={set('address')} autoComplete="street-address" />
+                      </label>
+                      {errors.address && <p className="warn">{errors.address}</p>}
+                      <label className="field">
+                        <span className="field-label">Barrio o ciudad (opcional)</span>
+                        <input value={data.city} onChange={set('city')} autoComplete="address-level2" />
+                      </label>
+                    </>
+                  )}
+
+                  <Options name="payment" legend="¿Cómo preferís pagar?" list={PAYMENTS} value={data.payment} onChange={set('payment')} />
+
+                  <label className="field">
+                    <span className="field-label">¿Algo más? (opcional)</span>
+                    <input value={data.note} onChange={set('note')} placeholder="Ej: es para regalo" />
                   </label>
                 </div>
               )}
@@ -182,7 +250,9 @@ export default function CheckoutSheet({ open, onClose }) {
               {step === 2 && (
                 <div className="form">
                   <h2>Así nos llega tu pedido</h2>
-                  <p className="preview-hint">Al tocar el botón se abre WhatsApp con este mensaje listo. Solo tenés que enviarlo.</p>
+                  <p className="preview-hint">
+                    Al tocar el botón se abre WhatsApp con este mensaje listo. Lo enviás y te respondemos para coordinar el pago y la entrega.
+                  </p>
                   <pre className="wa-preview">{message}</pre>
                 </div>
               )}
@@ -190,16 +260,37 @@ export default function CheckoutSheet({ open, onClose }) {
 
             {lines.length > 0 && (
               <aside className="checkout-side">
-                <p className="sum-row">
-                  <span>
-                    {count} {count === 1 ? 'prenda' : 'prendas'}
-                  </span>
-                  <span>{formatPrice(total)}</span>
+                <p className="side-title">
+                  Tu pedido · {count} {count === 1 ? 'prenda' : 'prendas'}
                 </p>
+                <ul className="side-lines">
+                  {lines.map((l) => (
+                    <li key={l.key}>
+                      <img src={l.product.front} alt="" width="44" height="42" />
+                      <span className="sl-info">
+                        <strong>
+                          {l.qty}x {l.product.name}
+                        </strong>
+                        <small>
+                          Talle {l.size}
+                          {colorOf(l) ? ' · ' + l.color.name : ''}
+                        </small>
+                      </span>
+                      <span className="sl-price">{formatPrice(l.product.price * l.qty)}</span>
+                    </li>
+                  ))}
+                </ul>
+                {step >= 1 && data.name.trim() && (
+                  <p className="side-meta">
+                    {data.delivery === 'envio' ? 'Envío a domicilio' : 'Retira en el local'} ·{' '}
+                    {PAYMENTS.find((p) => p.id === data.payment)?.title}
+                  </p>
+                )}
                 <p className="sum-total">
                   <span>Total</span>
                   <span>{formatPrice(total)}</span>
                 </p>
+                <p className="side-note">{data.delivery === 'envio' ? '+ envío · ' : ''}Pago y entrega se coordinan por WhatsApp</p>
                 {step < 2 ? (
                   <button type="button" className="btn-primary" onClick={next}>
                     Continuar

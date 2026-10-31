@@ -1,9 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-// solo el subset latino (español): menos archivos de fuente
-import '@fontsource/archivo/latin-500.css'
-import '@fontsource/archivo/latin-700.css'
-import '@fontsource/archivo/latin-800.css'
+// Archivo variable con eje de ancho (para el título extendido). El navegador solo baja el subset latino.
+import '@fontsource-variable/archivo/wdth.css'
 import '@fontsource/atkinson-hyperlegible/latin-400.css'
 import '@fontsource/atkinson-hyperlegible/latin-700.css'
 import './styles.css'

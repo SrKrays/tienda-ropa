@@ -26,6 +26,7 @@ export default function ProductSheet({ sel, open, onClose, onGoToCart }) {
   const { dispatch } = useCart()
   const [side, setSide] = useState(sel?.side || 'front')
   const [size, setSize] = useState(null)
+  const [color, setColor] = useState(null)
   const [qty, setQty] = useState(1)
   const [added, setAdded] = useState(false)
   const [warn, setWarn] = useState(false)
@@ -33,7 +34,8 @@ export default function ProductSheet({ sel, open, onClose, onGoToCart }) {
   useEffect(() => {
     if (!sel) return
     setSide(sel.side)
-    setSize(null)
+    setSize(sel.size || null)
+    setColor(sel.color || sel.product.colors?.[0] || null)
     setQty(1)
     setAdded(false)
     setWarn(false)
@@ -44,7 +46,7 @@ export default function ProductSheet({ sel, open, onClose, onGoToCart }) {
       setWarn(true)
       return
     }
-    dispatch({ type: 'add', product, size, qty })
+    dispatch({ type: 'add', product, size, color, qty })
     setAdded(true)
   }
 
@@ -83,6 +85,25 @@ export default function ProductSheet({ sel, open, onClose, onGoToCart }) {
             </p>
             <p className="product-note">[CUOTAS / DESCUENTO POR TRANSFERENCIA]</p>
             <p className="product-desc">{product.description}</p>
+
+            {product.colors?.length > 1 && (
+              <fieldset className="sizes">
+                <legend>Color: {color?.name}</legend>
+                <div className="size-row">
+                  {product.colors.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      className={'swatch' + (color?.id === c.id ? ' is-on' : '')}
+                      style={{ '--sw': c.hex }}
+                      aria-pressed={color?.id === c.id}
+                      aria-label={c.name}
+                      onClick={() => setColor(c)}
+                    />
+                  ))}
+                </div>
+              </fieldset>
+            )}
 
             <fieldset className="sizes">
               <legend>

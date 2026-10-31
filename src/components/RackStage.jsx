@@ -1,31 +1,42 @@
-import { useEffect, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, FastIcon, PauseIcon, PlayIcon } from './icons.jsx'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { COLLECTION_LABEL, COLLECTION_YEAR, SIZE_ORDER, formatPrice } from '../data/products.js'
+import { useCart } from '../store/cart.jsx'
+import { ArrowUpRight, CheckIcon, ChevronLeft, ChevronRight, PlusIcon, TurnIcon } from './icons.jsx'
 
 const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
-export default function RackStage({ products, onSelect, frozen, title }) {
+export default function RackStage({ products, headline, onSelect, frozen, apiRef }) {
   const hostRef = useRef(null)
   const rackRef = useRef(null)
+  const editRef = useRef(null)
+  const infoRef = useRef(null)
   const selectRef = useRef(onSelect)
   selectRef.current = onSelect
-  const [mode, setMode] = useState(reduced ? 'pause' : 'play')
   const [ready, setReady] = useState(false)
+  const [layout, setLayout] = useState(null)
+  const [center, setCenter] = useState(null) // { p, side }
+  const [picks, setPicks] = useState({}) // por prenda: { size, color }
+  const picksRef = useRef(picks)
+  picksRef.current = picks
+  const [warn, setWarn] = useState(false)
+  const [added, setAdded] = useState(false)
+  const { dispatch } = useCart()
 
+  // ---- motor del perchero (PixiJS se carga aparte) ----
   useEffect(() => {
     let rack = null
     let alive = true
-    // las fotos empiezan a bajar en paralelo con el motor gráfico
     for (const p of products) for (const u of [p.front, p.back]) if (u) new Image().src = u
-    // PixiJS se descarga aparte (import dinámico): la página pinta al instante
-    // y el perchero aparece apenas llega el motor gráfico.
     const fonts = document.fonts
-      ? Promise.all([document.fonts.load('800 13px Archivo'), document.fonts.load('17px "Atkinson Hyperlegible"')]).catch(() => {})
+      ? Promise.all([document.fonts.load('800 14px "Archivo Variable"')]).catch(() => {})
       : Promise.resolve()
     Promise.all([import('../rack/Rack.js'), fonts])
       .then(([{ Rack }]) => {
         if (!alive) return
         rack = new Rack(hostRef.current, {
-          onSelect: (p, side) => selectRef.current?.(p, side),
+          onSelect: (p, side) => selectRef.current?.(p, side, picksRef.current[p.id]),
+          onCenter: (p, side) => setCenter({ p, side }),
+          onLayout: setLayout,
           reducedMotion: reduced,
         })
         return rack.init()
@@ -43,15 +54,41 @@ export default function RackStage({ products, onSelect, frozen, title }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  useEffect(() => {
-    if (ready && rackRef.current) rackRef.current.setProducts(products)
-  }, [products, ready])
+  // la interfaz le avisa al perchero cuánto lugar tiene (arriba el título, abajo la info y el carrito)
+  const measure = useCallback(() => {
+    const rack = rackRef.current
+    if (!rack || !editRef.current || !infoRef.current) return
+    const mobile = window.innerWidth < 760
+    const top = editRef.current.getBoundingClientRect().bottom + (mobile ? 16 : 8)
+    const bar = mobile ? 100 : 96
+    const bottom = infoRef.current.offsetHeight + bar + (mobile ? 16 : 12)
+    rack.setInsets({ top, bottom })
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!ready) return
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(editRef.current)
+    ro.observe(infoRef.current)
+    window.addEventListener('resize', measure)
+    return () => {
+      ro.disconnect()
+      window.removeEventListener('resize', measure)
+    }
+  }, [ready, measure])
 
   useEffect(() => {
-    rackRef.current?.setMode(frozen ? 'pause' : mode)
-  }, [mode, frozen, ready])
+    if (ready && rackRef.current) {
+      measure()
+      rackRef.current.setProducts(products)
+    }
+  }, [products, ready, measure])
 
-  // con un panel abierto, el perchero deja de dibujarse (después de que el panel termina de subir)
+  useEffect(() => {
+    rackRef.current?.setPaused(frozen)
+  }, [frozen, ready])
+
   useEffect(() => {
     const rack = rackRef.current
     if (!rack) return
@@ -63,53 +100,183 @@ export default function RackStage({ products, onSelect, frozen, title }) {
     return () => clearTimeout(t)
   }, [frozen, ready])
 
+  // API para otros componentes (barra inferior)
+  useEffect(() => {
+    if (!apiRef) return
+    apiRef.current = {
+      next: () => rackRef.current?.nudge(1),
+      explore: () => {
+        rackRef.current?.resumeTour()
+        rackRef.current?.nudge(1)
+      },
+    }
+  }, [apiRef])
+
+  // flechas del teclado
+  useEffect(() => {
+    const onKey = (e) => {
+      if (frozen) return
+      const tag = document.activeElement?.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      if (e.key === 'ArrowRight') rackRef.current?.nudge(1)
+      if (e.key === 'ArrowLeft') rackRef.current?.nudge(-1)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [frozen])
+
+  // al cambiar la prenda del centro se limpian los avisos
+  const centerId = center?.p.id
+  useEffect(() => {
+    setWarn(false)
+    setAdded(false)
+  }, [centerId])
+
+  const p = center?.p
+  const pick = (p && picks[p.id]) || {}
+  const color = p ? pick.color || p.colors?.[0] : null
+  const setPick = (patch) => {
+    setPicks((all) => ({ ...all, [p.id]: { ...pick, ...patch } }))
+    rackRef.current?.holdCenter()
+  }
+
+  const addToCart = () => {
+    if (!pick.size) {
+      setWarn(true)
+      rackRef.current?.holdCenter()
+      return
+    }
+    dispatch({ type: 'add', product: p, size: pick.size, color, qty: 1 })
+    setAdded(true)
+    setWarn(false)
+    rackRef.current?.holdCenter()
+    clearTimeout(addRef.current)
+    addRef.current = setTimeout(() => setAdded(false), 2200)
+  }
+  const addRef = useRef(null)
+
+  const flip = () => {
+    const side = rackRef.current?.flipCenter()
+    if (side) setCenter((c) => (c ? { ...c, side } : c))
+  }
+
+  const style = layout ? { top: layout.infoTop } : { visibility: 'hidden' }
+
   return (
-    <section className="stage" aria-label={title}>
+    <section className="stage" aria-label={headline.title}>
       <div className="stage-canvas" ref={hostRef} />
+      <div className="beams" aria-hidden="true" />
       {!ready && (
         <p className="stage-loading" aria-hidden="true">
           Colgando la ropa…
         </p>
       )}
 
-      <h1 className="stage-title">
-        <span className="kicker">Recién colgado en el local</span>
-        {title}
-      </h1>
+      <div className="editorial" ref={editRef}>
+        <p className="ed-kicker">
+          {COLLECTION_LABEL} <span>/ {COLLECTION_YEAR}</span>
+          <i aria-hidden="true" />
+        </p>
+        <h1 className="ed-title">{headline.title}</h1>
+        <p className="ed-sub">{headline.sub}</p>
+        <p className="ed-meta">
+          <span>
+            {products.length} {products.length === 1 ? 'prenda' : 'prendas'}
+          </span>
+          <button type="button" onClick={() => apiRef?.current?.explore()}>
+            Explorar colección <ArrowUpRight size={15} />
+          </button>
+        </p>
+      </div>
 
-      <div className="rack-controls">
-        <button type="button" className="ctl round" aria-label="Prenda anterior" onClick={() => rackRef.current?.nudge(-1)}>
-          <ChevronLeft />
-        </button>
-        <button
-          type="button"
-          className="ctl"
-          aria-pressed={mode === 'pause'}
-          onClick={() => setMode(mode === 'pause' ? 'play' : 'pause')}
-        >
-          {mode === 'pause' ? <PlayIcon /> : <PauseIcon />}
-          <span>{mode === 'pause' ? 'Mover' : 'Pausar'}</span>
-        </button>
-        <button
-          type="button"
-          className={'ctl' + (mode === 'fast' ? ' is-on' : '')}
-          aria-pressed={mode === 'fast'}
-          onClick={() => setMode(mode === 'fast' ? 'play' : 'fast')}
-        >
-          <FastIcon />
-          <span>{mode === 'fast' ? 'Velocidad normal' : 'Ver más rápido'}</span>
-        </button>
-        <button type="button" className="ctl round" aria-label="Prenda siguiente" onClick={() => rackRef.current?.nudge(1)}>
-          <ChevronRight />
-        </button>
+      {layout && !layout.mobile && (
+        <>
+          <button type="button" className="nav-arrow left" style={{ top: layout.arrowsY }} aria-label="Prenda anterior" onClick={() => rackRef.current?.nudge(-1)}>
+            <ChevronLeft />
+          </button>
+          <button type="button" className="nav-arrow right" style={{ top: layout.arrowsY }} aria-label="Prenda siguiente" onClick={() => rackRef.current?.nudge(1)}>
+            <ChevronRight />
+          </button>
+        </>
+      )}
+
+      <div className="center-info" ref={infoRef} style={style} aria-live="polite">
+        {p && (
+          <>
+            <h2 className="ci-name">{p.name}</h2>
+            <p className="ci-price">
+              {formatPrice(p.price)}
+              {p.oldPrice && <s>{formatPrice(p.oldPrice)}</s>}
+            </p>
+            <div className="ci-controls">
+            <div className="ci-options">
+              {p.colors?.length > 1 && (
+                <>
+                  <div className="ci-colors" role="group" aria-label="Color">
+                    {p.colors.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className={'dot' + (color?.id === c.id ? ' is-on' : '')}
+                        style={{ '--sw': c.hex }}
+                        aria-pressed={color?.id === c.id}
+                        aria-label={'Color ' + c.name}
+                        title={c.name}
+                        onClick={() => setPick({ color: c })}
+                      />
+                    ))}
+                  </div>
+                  <span className="ci-sep" aria-hidden="true" />
+                </>
+              )}
+              <div className="ci-sizes" role="group" aria-label="Talle">
+                {SIZE_ORDER.map((sz) => {
+                  const out = !(p.sizes[sz] > 0)
+                  return (
+                    <button
+                      key={sz}
+                      type="button"
+                      className={'size-dot' + (pick.size === sz ? ' is-on' : '') + (out ? ' is-out' : '')}
+                      disabled={out}
+                      aria-pressed={pick.size === sz}
+                      aria-label={out ? `Talle ${sz}, sin stock` : `Talle ${sz}`}
+                      onClick={() => {
+                        setPick({ size: sz })
+                        setWarn(false)
+                      }}
+                    >
+                      {sz}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <div className="ci-actions">
+              {p.back && (
+                <button type="button" className="pill-btn" onClick={flip}>
+                  <TurnIcon /> {center.side === 'back' ? 'Ver frente' : 'Ver espalda'}
+                </button>
+              )}
+              <button type="button" className={'pill-btn solid' + (added ? ' is-done' : '')} onClick={addToCart}>
+                {added ? <CheckIcon /> : <PlusIcon />} {added ? 'Agregada' : 'Agregar'}
+              </button>
+            </div>
+            </div>
+            {warn && (
+              <p className="ci-warn" role="alert">
+                Elegí tu talle para agregarla
+              </p>
+            )}
+          </>
+        )}
       </div>
 
       {/* Lista accesible: con teclado o lector de pantalla se puede elegir cualquier prenda */}
       <ul className="a11y-list" aria-label="Prendas en el perchero">
-        {products.map((p) => (
-          <li key={p.id}>
-            <button type="button" onClick={() => onSelect(p)}>
-              Ver {p.name}
+        {products.map((it) => (
+          <li key={it.id}>
+            <button type="button" onClick={() => onSelect(it)}>
+              Ver {it.name}
             </button>
           </li>
         ))}
