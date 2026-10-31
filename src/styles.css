@@ -858,3 +858,40 @@ a { color: var(--sand); }
   color: #dbe9d4;
 }
 .coord-note svg { flex: none; margin-top: 2px; }
+
+/* ---------- Animación al tocar (todos los botones) ----------
+   Base: el botón del carrito. Al apretar se hunde, el borde se ilumina en marfil
+   y al soltar sale un halo que se desvanece. */
+button, a[href], label.option { -webkit-tap-highlight-color: transparent; }
+button, .cp-btn, .pill-btn, .btn-primary, .btn-ghost, .cat, .cart-btn, .size-dot, .dot, .size, .swatch,
+.nav-arrow, .sheet-close, .option, .bb-side.right, .ed-meta button, .qty button, .link, .side-toggle button {
+  transition:
+    transform 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.25),
+    border-color 0.2s ease,
+    background-color 0.2s ease,
+    color 0.2s ease,
+    box-shadow 0.35s ease,
+    filter 0.2s ease;
+}
+.is-pressing {
+  transform: scale(0.94) !important;
+  transition-duration: 0.09s, 0.09s, 0.2s, 0.2s, 0.2s, 0.2s !important;
+  border-color: var(--ivory) !important;
+  filter: brightness(1.12);
+}
+.option.is-pressing, .btn-primary.is-pressing, .btn-ghost.is-pressing { transform: scale(0.98) !important; }
+.tap-glow { animation: tap-glow 0.52s ease-out; }
+@keyframes tap-glow {
+  0% { box-shadow: 0 0 0 0 rgba(240, 235, 221, 0.5), 0 0 18px rgba(240, 235, 221, 0.25); }
+  100% { box-shadow: 0 0 0 14px rgba(240, 235, 221, 0), 0 0 0 rgba(240, 235, 221, 0); }
+}
+/* hover en compu: borde marfil como en el carrito */
+@media (hover: hover) {
+  .cat:hover, .cart-btn:hover, .size-dot:hover:not(:disabled), .pill-btn:hover, .nav-arrow:hover, .sheet-close:hover, .btn-ghost:hover {
+    border-color: var(--ivory);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .is-pressing { transform: none !important; }
+  .tap-glow { animation: none; }
+}

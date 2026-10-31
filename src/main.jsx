@@ -7,6 +7,9 @@ import '@fontsource/atkinson-hyperlegible/latin-700.css'
 import './styles.css'
 import App from './App.jsx'
 import { CartProvider } from './store/cart.jsx'
+import { installPressFx } from './lib/pressFx.js'
+
+installPressFx()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

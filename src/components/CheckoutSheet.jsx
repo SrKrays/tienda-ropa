@@ -19,7 +19,6 @@ const DELIVERY = [
 const PAYMENTS = [
   { id: 'transferencia', title: 'Transferencia', text: 'Te pasamos el alias por WhatsApp.' },
   { id: 'efectivo', title: 'Efectivo', text: 'Pagás al retirar o al recibir.' },
-  { id: 'mercadopago', title: 'Mercado Pago', text: 'Te mandamos el link de pago por WhatsApp.' },
 ]
 
 const fecha = () => {
