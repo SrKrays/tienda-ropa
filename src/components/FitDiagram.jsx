@@ -8,7 +8,7 @@ const VIEW_W = 84 // cm de ancho que entran en el dibujo
 // visto de frente, algo redondo de contorno C se ve de ~C / 2.9 de ancho (cuerpo y remera puesta)
 const FRONT = 2.9
 const TOP = -4 // cm arriba de la cabeza
-const BOTTOM_K = 0.6 // se muestra hasta el 60 % de la altura (mitad de muslo)
+const BOTTOM_K = 0.64 // se muestra hasta el 60 % de la altura (mitad de muslo)
 
 function body(H, chest, isWoman) {
   const cx = 0
@@ -102,7 +102,9 @@ function tee(b, m, fitType) {
     `Q 0 ${top + 7} ${-neckHalf} ${top}`,
     'Z',
   ].join(' ')
-  return { path, hem, half, tight, pitY: pit, L, R }
+  // caja que ocupa la remera (para calzar la foto real adentro)
+  const box = { x: L.ex, y: top - 1, w: R.ex - L.ex, h: hem + 1.2 - (top - 1) }
+  return { path, hem, half, tight, pitY: pit, L, R, box }
 }
 
 // a qué parte del cuerpo llega el ruedo
@@ -143,6 +145,12 @@ export default function FitDiagram({ product, person, size, compare, sizes, onCo
             <stop offset="0" stopColor="#eedfc1" stopOpacity="0.62" />
             <stop offset="1" stopColor="#d8c7a0" stopOpacity="0.5" />
           </linearGradient>
+          <linearGradient id="fitd-shade" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stopColor="#000" stopOpacity="0.35" />
+            <stop offset="0.22" stopColor="#000" stopOpacity="0" />
+            <stop offset="0.78" stopColor="#000" stopOpacity="0" />
+            <stop offset="1" stopColor="#000" stopOpacity="0.35" />
+          </linearGradient>
         </defs>
         {/* silueta */}
         <circle cx="0" cy={b.headY} r={b.headR} className="fitd-body" />
@@ -150,7 +158,25 @@ export default function FitDiagram({ product, person, size, compare, sizes, onCo
         {/* talle para comparar (punteado) */}
         {c && <path d={c.path} className="fitd-compare" />}
         {/* remera del talle elegido */}
-        <path d={t.path} fill="url(#fitd-tee)" className={'fitd-tee' + (t.tight ? ' is-tight' : '')} />
+        <clipPath id="fitd-clip">
+          <path d={t.path} />
+        </clipPath>
+        <path d={t.path} fill="url(#fitd-tee)" opacity={product.front ? 0.35 : 1} />
+        {/* la foto real de la remera, calzada adentro del contorno del talle */}
+        {product.front && (
+          <image
+            href={product.front}
+            x={t.box.x}
+            y={t.box.y}
+            width={t.box.w}
+            height={t.box.h}
+            preserveAspectRatio="none"
+            clipPath="url(#fitd-clip)"
+          />
+        )}
+        {/* volumen suave: un poco más oscuro a los costados, como un cuerpo redondo */}
+        <path d={t.path} fill="url(#fitd-shade)" />
+        <path d={t.path} fill="none" className={'fitd-tee' + (t.tight ? ' is-tight' : '')} />
 
         {/* largo: flecha del hombro al ruedo */}
         <g className="fitd-dim">
@@ -163,8 +189,11 @@ export default function FitDiagram({ product, person, size, compare, sizes, onCo
         </g>
         {/* ancho */}
         <g className="fitd-dim">
-          <line x1={-t.half} y1={t.pitY + 4} x2={t.half} y2={t.pitY + 4} />
-          <text x="0" y={t.pitY + 9} fontSize={fs} textAnchor="middle">
+          {/* ancho: debajo del ruedo, así no tapa la foto de la remera */}
+          <line x1={-t.half} y1={t.hem + 3.5} x2={t.half} y2={t.hem + 3.5} />
+          <line x1={-t.half} y1={t.hem + 2} x2={-t.half} y2={t.hem + 5} />
+          <line x1={t.half} y1={t.hem + 2} x2={t.half} y2={t.hem + 5} />
+          <text x="0" y={t.hem + 8.6} fontSize={fs} textAnchor="middle">
             {f.m.ancho} cm
           </text>
         </g>
