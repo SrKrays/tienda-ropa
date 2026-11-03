@@ -1169,3 +1169,11 @@ button, .cp-btn, .pill-btn, .btn-primary, .btn-ghost, .cat, .cart-btn, .size-dot
 @media (max-width: 859px) {
   .thumbs .thumb span { white-space: nowrap; font-size: 11px; letter-spacing: 0.04em; }
 }
+
+/* pedido: link con la foto de las prendas */
+.send-meas { margin-top: 18px; }
+.send-meas small { word-break: break-word; }
+.order-link { margin: 12px 0 0; font-size: 16px; color: var(--muted); }
+.order-link::before { content: '📸 '; }
+.order-link.bad { color: var(--alert); }
+.wa-btn:disabled { opacity: 0.6; cursor: progress; }

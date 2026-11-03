@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { WHATSAPP_NUMBER, formatPrice } from '../data/products.js'
 import { useCart } from '../store/cart.jsx'
 import Sheet from './Sheet.jsx'
 import { CheckIcon, WhatsIcon } from './icons.jsx'
+import { API_URL } from '../data/catalog.js'
+import { createOrder, measureText, personText, savedPerson } from '../lib/order.js'
 
 // Igual que en Bruzz: no hay pago online. El pedido se arma acá con todos los datos
 // y llega directo al WhatsApp del local, listo para preparar.
@@ -37,12 +39,17 @@ const colorOf = (l) => (l.color && l.product.colors?.length > 1 ? l.color.name.t
 //
 //   *1x CAMISETA BELGRANO* — $ 54.900
 //     talle M · celeste
+//     medidas: ancho 52 · largo 72 · manga 21 cm
 //
 //   *TOTAL: $ 54.900*
-export function buildMessage(lines, total, data) {
+//
+//   mis medidas: 1,78 m · 75 kg · pecho ~96 cm · le gusta regular
+//   📸 fotos del pedido: https://…/o/K7P2QX   ← WhatsApp muestra la imagen de las prendas
+export function buildMessage(lines, total, data, { orderUrl, person } = {}) {
   const items = lines.map((l) => {
     const det = [`talle ${l.size}`, colorOf(l)].filter(Boolean).join(' · ')
-    return `*${l.qty}x ${l.product.name.toUpperCase()}* — ${formatPrice(l.product.price * l.qty)}\n  ${det}`
+    const med = measureText(l.product, l.size)
+    return `*${l.qty}x ${l.product.name.toUpperCase()}* — ${formatPrice(l.product.price * l.qty)}\n  ${det}${med ? `\n  medidas: ${med}` : ''}`
   })
   const pago = PAYMENTS.find((p) => p.id === data.payment)?.title.toLowerCase()
   const entrega =
@@ -59,6 +66,8 @@ export function buildMessage(lines, total, data) {
     data.note.trim() ? `\nnota: ${data.note.trim()}` : null,
     '',
     data.delivery === 'envio' ? `*TOTAL: ${formatPrice(total)}* (+ envío a coordinar)` : `*TOTAL: ${formatPrice(total)}*`,
+    person ? `\nmis medidas: ${person}` : null,
+    orderUrl ? `\n📸 fotos del pedido: ${orderUrl}` : null,
   ]
     .filter((l) => l !== null)
     .join('\n')
@@ -95,8 +104,13 @@ export default function CheckoutSheet({ open, onClose }) {
     city: '',
     payment: 'transferencia',
     note: '',
+    sendMeasures: true,
   })
   const [errors, setErrors] = useState({})
+  // pedido guardado en la API: da el link con la foto de las prendas para el mensaje
+  const [order, setOrder] = useState({ status: 'idle' })
+  const orderKey = useRef(null)
+  const person = useMemo(() => (open ? personText(savedPerson()) : null), [open])
 
   useEffect(() => {
     if (open) {
@@ -107,7 +121,36 @@ export default function CheckoutSheet({ open, onClose }) {
   }, [open])
 
   const set = (k) => (e) => setData((d) => ({ ...d, [k]: typeof e === 'string' ? e : e.target.value }))
-  const message = useMemo(() => buildMessage(lines, total, data), [lines, total, data])
+  const extra = { person: data.sendMeasures ? person : null }
+  const message = useMemo(
+    () => buildMessage(lines, total, data, { ...extra, orderUrl: order.status === 'ok' ? order.url : null }),
+    [lines, total, data, person, order] // eslint-disable-line react-hooks/exhaustive-deps
+  )
+
+  // al llegar al último paso se crea el pedido (así el botón de WhatsApp abre al instante, sin bloqueos del navegador)
+  useEffect(() => {
+    if (step !== 2 || !API_URL || lines.length === 0) return
+    const key = JSON.stringify([lines.map((l) => [l.key, l.qty]), data, person])
+    if (orderKey.current === key && order.status !== 'error') return
+    orderKey.current = key
+    let alive = true
+    setOrder({ status: 'loading' })
+    const slow = setTimeout(() => alive && setOrder((o) => (o.status === 'loading' ? { status: 'slow' } : o)), 12000)
+    createOrder(lines, total, data, { customerMeasures: data.sendMeasures ? person : null })
+      .then((r) => {
+        if (!alive) return
+        if (r?.url) setOrder({ status: 'ok', url: r.url, id: r.id })
+        else setOrder({ status: 'error', error: r?.error })
+      })
+      .catch(() => alive && setOrder({ status: 'error' }))
+      .finally(() => clearTimeout(slow))
+    return () => {
+      alive = false
+      clearTimeout(slow)
+    }
+  }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
+  const preparing = order.status === 'loading'
+
   const waHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`
 
   const validate = () => {
@@ -243,6 +286,16 @@ export default function CheckoutSheet({ open, onClose }) {
                     <span className="field-label">¿Algo más? (opcional)</span>
                     <input value={data.note} onChange={set('note')} placeholder="Ej: es para regalo" />
                   </label>
+
+                  {person && (
+                    <label className="option send-meas">
+                      <input type="checkbox" checked={data.sendMeasures} onChange={(e) => setData((d) => ({ ...d, sendMeasures: e.target.checked }))} />
+                      <span>
+                        <strong>Mandar mis medidas con el pedido</strong>
+                        <small>{person}</small>
+                      </span>
+                    </label>
+                  )}
                 </div>
               )}
 
@@ -253,6 +306,19 @@ export default function CheckoutSheet({ open, onClose }) {
                     Al tocar el botón se abre WhatsApp con este mensaje listo. Lo enviás y te respondemos para coordinar el pago y la entrega.
                   </p>
                   <pre className="wa-preview">{message}</pre>
+                  {API_URL && (
+                    <p className={'order-link' + (order.status === 'error' ? ' bad' : '')} role="status">
+                      {preparing
+                        ? 'Preparando la foto de tus prendas para el mensaje…'
+                        : order.status === 'ok'
+                          ? 'El mensaje lleva un link con la foto de tus prendas, talles y medidas.'
+                          : order.status === 'slow'
+                            ? 'La foto tarda más de lo normal: podés enviar igual, el pedido llega completo.'
+                            : order.status === 'error'
+                              ? (order.error || 'No se pudo preparar la foto.') + ' Podés enviar igual: el pedido llega completo.'
+                              : null}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -295,8 +361,8 @@ export default function CheckoutSheet({ open, onClose }) {
                     Continuar
                   </button>
                 ) : (
-                  <button type="button" className="btn-primary wa-btn" onClick={send}>
-                    <WhatsIcon /> Enviar por WhatsApp
+                  <button type="button" className="btn-primary wa-btn" onClick={send} disabled={preparing}>
+                    <WhatsIcon /> {preparing ? 'Preparando…' : 'Enviar por WhatsApp'}
                   </button>
                 )}
                 {step > 0 && (

@@ -36,8 +36,9 @@ export const SIZE_TABLES = {
 }
 
 export function measuresOf(product, size) {
-  const table = product.measures || SIZE_TABLES[product.fitType || 'remera']
-  return table[size] || table.M
+  // medidas reales cargadas en el panel; si ese talle no las tiene, la tabla estándar del tipo de prenda
+  const std = SIZE_TABLES[product.fitType] || SIZE_TABLES.remera
+  return product.measures?.[size] || std[size] || std.M
 }
 
 export const FIT_PREFS = [

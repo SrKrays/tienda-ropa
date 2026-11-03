@@ -18,17 +18,19 @@ public static class ImageCheck
 {
     public const int MaxBytes = 4 * 1024 * 1024;
 
-    // Solo aceptamos WebP o PNG reales (se miran los primeros bytes, no la extensión)
+    // Solo aceptamos WebP, PNG o JPG reales (se miran los primeros bytes, no la extensión)
     public static string? Sniff(byte[] d)
     {
         if (d.Length > 12 && d[0] == 'R' && d[1] == 'I' && d[2] == 'F' && d[3] == 'F' && d[8] == 'W' && d[9] == 'E' && d[10] == 'B' && d[11] == 'P')
             return "image/webp";
         if (d.Length > 8 && d[0] == 0x89 && d[1] == 'P' && d[2] == 'N' && d[3] == 'G')
             return "image/png";
+        if (d.Length > 3 && d[0] == 0xFF && d[1] == 0xD8 && d[2] == 0xFF)
+            return "image/jpeg";
         return null;
     }
 
-    public static string Ext(string contentType) => contentType == "image/png" ? "png" : "webp";
+    public static string Ext(string contentType) => contentType switch { "image/png" => "png", "image/jpeg" => "jpg", _ => "webp" };
 
     // nombre de archivo legible y único: "remera-skull-frente-3f9a1c2b7d4e"
     public static string FileId(string baseName)

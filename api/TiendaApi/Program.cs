@@ -49,25 +49,32 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy("login", ctx => RateLimitPartition.GetFixedWindowLimiter(
         ctx.Connection.RemoteIpAddress?.ToString() ?? "x",
         _ => new FixedWindowRateLimiterOptions { PermitLimit = 5, Window = TimeSpan.FromMinutes(1) }));
+    o.AddPolicy("orders", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "x",
+        _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(5) }));
 });
 
 builder.Services.ConfigureHttpJsonOptions(o => o.SerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase);
 
 var app = builder.Build();
 
-app.UseForwardedHeaders(new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto });
+// Render atiende detrás de su proxy: así sabemos la IP real (para los límites) y que la dirección es https
+var fwd = new ForwardedHeadersOptions { ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedHost };
+fwd.KnownIPNetworks.Clear();
+fwd.KnownProxies.Clear();
+app.UseForwardedHeaders(fwd);
 app.UseCors();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// crea las tablas la primera vez (con tan pocas tablas no hacen falta migraciones)
+// crea / actualiza las tablas al arrancar (migraciones de EF Core en Migrations/)
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDb>();
     for (var i = 1; ; i++)
     {
-        try { db.Database.EnsureCreated(); break; }
+        try { db.Database.Migrate(); break; }
         catch (Exception e) when (i < 6)
         {
             app.Logger.LogWarning("La base todavía no responde ({Msg}), reintento {I}/5…", e.Message, i);
@@ -82,5 +89,6 @@ app.MapGet("/", () => Results.Text("Tienda API ✔"));
 
 app.MapAuthEndpoints();
 app.MapProductEndpoints();
+app.MapOrderEndpoints();
 
 app.Run();

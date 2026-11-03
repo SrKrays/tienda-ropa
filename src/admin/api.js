@@ -80,3 +80,6 @@ export function saveProduct(id, data, front, back) {
 export const setActive = (id, active) => call(`/api/admin/products/${encodeURIComponent(id)}/active`, { method: 'PATCH', json: { active } })
 export const deleteProduct = (id) => call('/api/admin/products/' + encodeURIComponent(id), { method: 'DELETE' })
 export const saveOrder = (ids) => call('/api/admin/order', { method: 'PUT', json: ids })
+
+export const listOrders = () => call('/api/admin/orders')
+export const setOrderStatus = (id, status) => call(`/api/admin/orders/${encodeURIComponent(id)}/status`, { method: 'PATCH', json: { status } })

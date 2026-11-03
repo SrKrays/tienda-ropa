@@ -45,7 +45,7 @@ Dos fotos por prenda (frente y espalda), con la prenda **estirada sobre una pare
 ## Backend (fase final)
 
 ```
-Vercel (tienda + /admin)  ──►  Render: API .NET 10  ──►  PostgreSQL (Render)
+Vercel (tienda + /admin)  ──►  Render: API .NET 10  ──►  MySQL (Clever Cloud)
                                        │
                                        └─ fotos: en la base (prueba)  ·  por FTP a Don Web (producción)
 ```
@@ -60,8 +60,8 @@ Vercel (tienda + /admin)  ──►  Render: API .NET 10  ──►  PostgreSQL 
 
 | Variable | Qué es |
 |---|---|
-| `DATABASE_URL` | la URL de la base (Render la pone sola con el Blueprint) |
-| `DB_PROVIDER` | `postgres` (Render) o `mysql` (Don Web / Clever Cloud) |
+| `DATABASE_URL` | la *Connection URI* de la MySQL de Clever Cloud (`mysql://...`) |
+| `STORE_NAME` | nombre del local (sale en la página del pedido) |
 | `ADMIN_PASSWORD` | la contraseña del panel (mínimo 8 caracteres) |
 | `JWT_KEY` | clave larga al azar (el Blueprint la genera sola) |
 | `CORS_ORIGINS` | `https://tu-tienda.vercel.app,http://localhost:5173` |
@@ -73,13 +73,18 @@ Vercel (tienda + /admin)  ──►  Render: API .NET 10  ──►  PostgreSQL 
 ### Deploy de prueba
 
 1. **Subir a GitHub** (`SrKrays/tienda-ropa`).
-2. **Render** → New → **Blueprint** → elegir el repo. Crea `tienda-api` (Docker) y `tienda-db` (Postgres). Cargar `ADMIN_PASSWORD` y `CORS_ORIGINS` cuando lo pida.
+2. **Clever Cloud**: crear (o usar) un add-on MySQL y copiar su *Connection URI*.
+3. **Render** → New → **Blueprint** → elegir el repo. Crea `tienda-api` (Docker). Cargar `DATABASE_URL`, `ADMIN_PASSWORD` y `CORS_ORIGINS`. Las tablas se crean solas (migraciones EF Core).
 3. Abrir `https://tienda-api.onrender.com/health` → tiene que decir `ok: true`.
 4. **Vercel** → Add New Project → el mismo repo (Framework: Vite). En Environment Variables: `VITE_API_URL = https://tienda-api.onrender.com`. Deploy.
 5. Entrar a `https://<tu-tienda>.vercel.app/admin`, poner la contraseña y cargar la primera prenda (o el botón "Cargar las 4 prendas de ejemplo").
 6. **Keep-alive**: en cron-job.org, un GET a `/health` cada 10 minutos (igual que Bruzz) para que Render no se duerma.
 
-> Render gratis: la base Postgres free vence a los 30 días. Para la prueba alcanza; para producción, MySQL en Don Web.
+> Clever DEV: 10 MB y 5 conexiones (el pool usa 4). Las fotos en la base alcanzan para probar; para producción, `IMAGE_STORE=ftp` (Don Web). Las imágenes de pedidos se borran solas a los 60 días.
+
+### Pedidos
+
+Al llegar al último paso del carrito se crea el pedido (`POST /api/orders`, precios tomados de la base) con una imagen de las prendas armada en el navegador. El mensaje de WhatsApp lleva talles, medidas de cada prenda, las medidas de la persona (si usó la calculadora) y el link `/o/CODIGO`: WhatsApp muestra la foto como vista previa y el local ve el detalle. En el panel → **Pedidos** se marcan como confirmado / entregado.
 
 ### Pasar a Don Web (producción)
 
@@ -89,15 +94,14 @@ Vercel (tienda + /admin)  ──►  Render: API .NET 10  ──►  PostgreSQL 
    Header set Cache-Control "public, max-age=31536000, immutable"
    ```
 2. En Render: `IMAGE_STORE=ftp` + las variables `FTP_*`. Las fotos nuevas suben por FTP (FluentFTP), como en Bruzz.
-3. Base MySQL de Don Web: `DB_PROVIDER=mysql` y `DATABASE_URL=Server=...;Database=...;Uid=...;Pwd=...;`. Las tablas se crean solas al arrancar.
 4. La tienda (dist/) se puede subir por FTP al mismo hosting, igual que Bruzz (con `VITE_API_URL` apuntando a la API).
 
 ### Correr todo local
 
 ```bash
-# API (necesita .NET 10 y un Postgres)
+# API (necesita .NET 10; puede apuntar a la MySQL de Clever)
 cd api/TiendaApi
-set DATABASE_URL=Host=localhost;Database=tienda;Username=postgres;Password=...
+set DATABASE_URL=mysql://usuario:clave@host:3306/base
 set ADMIN_PASSWORD=probando123
 set JWT_KEY=una-clave-larga-de-mas-de-32-caracteres-123
 dotnet run --urls http://localhost:5080

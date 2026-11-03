@@ -276,3 +276,26 @@ small { font-size: 15px; }
   .a-item { grid-template-columns: 80px minmax(0, 1fr); }
   .a-thumb { width: 80px; height: 88px; }
 }
+
+/* pestañas y pedidos */
+.a-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 5px; margin-bottom: 18px; border-radius: 16px; background: var(--panel); border: 1px solid var(--line); }
+.a-tab { min-height: 50px; border: 0; border-radius: 12px; background: transparent; font-weight: 700; font-size: 17px; color: var(--muted); }
+.a-tab.is-on { background: var(--champ); color: #1a1712; }
+.a-filter { margin-bottom: 14px; align-items: center; }
+.a-filter .a-chip { background: transparent; color: var(--ivory); font-size: 16px; }
+.a-filter .a-chip.is-on { background: var(--champ); color: #1a1712; }
+.a-order { padding: 16px; border-radius: 18px; border: 1px solid var(--line); background: var(--panel); display: grid; gap: 10px; }
+.a-order.st-nuevo { border-color: rgba(238, 223, 193, 0.6); }
+.a-order.st-entregado, .a-order.st-cancelado { opacity: 0.6; }
+.a-order-head { display: flex; align-items: baseline; gap: 12px; }
+.a-code { font-family: var(--display); font-weight: 800; font-size: 20px; color: var(--champ); }
+.a-order-head small { color: var(--muted); }
+.a-order-total { margin-left: auto; font-family: var(--display); font-size: 20px; }
+.a-order-who { margin: 0; }
+.a-order-who small { color: var(--muted); }
+.a-order-items { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.a-order-items li { display: flex; gap: 12px; align-items: center; }
+.a-order-items img { width: 52px; height: 56px; object-fit: contain; border-radius: 10px; background: linear-gradient(#2a2820, #15140f); }
+.a-order-items span { display: grid; }
+.a-order-items small { color: var(--muted); }
+.a-status { min-height: 48px; padding: 0 14px; border-radius: 999px; border: 1.5px solid var(--line); background: var(--panel-2); font-weight: 700; font-size: 16px; }

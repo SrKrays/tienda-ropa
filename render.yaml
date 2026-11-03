@@ -1,5 +1,5 @@
-# Render Blueprint: crea la API y la base de datos de prueba con un clic
-# (Render → New → Blueprint → elegir este repo)
+# Render Blueprint: crea la API (Render → New → Blueprint → elegir este repo).
+# La base de datos es MySQL en Clever Cloud: pegá su "Connection URI" en DATABASE_URL.
 services:
   - type: web
     name: tienda-api
@@ -9,23 +9,15 @@ services:
     dockerfilePath: ./Dockerfile
     healthCheckPath: /health
     envVars:
-      - key: DB_PROVIDER
-        value: postgres
       - key: DATABASE_URL
-        fromDatabase:
-          name: tienda-db
-          property: connectionString
+        sync: false # mysql://usuario:clave@host-de-clever:3306/base
       - key: IMAGE_STORE
         value: db
       - key: JWT_KEY
         generateValue: true
       - key: ADMIN_PASSWORD
-        sync: false # la cargás vos en el panel de Render
+        sync: false
       - key: CORS_ORIGINS
-        sync: false # ej: https://tienda-ropa.vercel.app,http://localhost:5173
-
-databases:
-  - name: tienda-db
-    plan: free
-    databaseName: tienda
-    user: tienda
+        sync: false # ej: https://tienda-ropa.vercel.app
+      - key: STORE_NAME
+        value: "[MARCA]"

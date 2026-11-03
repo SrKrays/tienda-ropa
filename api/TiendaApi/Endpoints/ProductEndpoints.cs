@@ -25,6 +25,9 @@ public static class ProductEndpoints
             var img = await db.Images.AsNoTracking().FirstOrDefaultAsync(i => i.Id == id, ct);
             if (img is null) return Results.NotFound();
             http.Response.Headers.CacheControl = "public, max-age=31536000, immutable";
+            // siempre con permiso CORS (aunque el pedido no lo pida): si el navegador guardó la foto sin este
+            // encabezado, después el perchero / el probador / la imagen del pedido no la podrían usar
+            http.Response.Headers.AccessControlAllowOrigin = "*";
             return Results.File(img.Data, img.ContentType);
         });
 

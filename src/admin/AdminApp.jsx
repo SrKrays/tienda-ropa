@@ -3,6 +3,7 @@ import { API_URL, normalize } from '../data/catalog.js'
 import { PRODUCTS as DEMO, formatPrice } from '../data/products.js'
 import { deleteProduct, getToken, listProducts, login, logout, saveOrder, saveProduct, setActive } from './api.js'
 import ProductForm from './ProductForm.jsx'
+import OrdersList from './OrdersList.jsx'
 
 // Panel del local: entrar con la contraseña, ver las prendas, cargar / editar / esconder / borrar.
 // Todo grande y con palabras simples: lo usa el dueño desde el celular.
@@ -119,6 +120,7 @@ export default function AdminApp() {
   const [editing, setEditing] = useState(null) // null | 'new' | product
   const [toast, setToast] = useState(null)
   const [importing, setImporting] = useState(false)
+  const [tab, setTab] = useState('prendas')
 
   const say = (msg) => {
     setToast(msg)
@@ -238,7 +240,7 @@ export default function AdminApp() {
       <header className="a-top">
         <div>
           <p className="a-brand">[MARCA]</p>
-          <h1>Mis prendas</h1>
+          <h1>{tab === 'prendas' ? 'Mis prendas' : 'Pedidos'}</h1>
         </div>
         <div className="a-top-actions">
           <a className="a-btn ghost" href="/" target="_blank" rel="noreferrer">
@@ -257,6 +259,28 @@ export default function AdminApp() {
         </div>
       </header>
 
+      <nav className="a-tabs" aria-label="Secciones del panel">
+        {[
+          ['prendas', 'Prendas'],
+          ['pedidos', 'Pedidos'],
+        ].map(([id, label]) => (
+          <button key={id} type="button" className={'a-tab' + (tab === id ? ' is-on' : '')} aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)}>
+            {label}
+          </button>
+        ))}
+      </nav>
+
+      {tab === 'pedidos' ? (
+        <>
+          {err && (
+            <div className="a-errors" role="alert">
+              <p>{err}</p>
+            </div>
+          )}
+          <OrdersList onError={handle} />
+        </>
+      ) : (
+      <>
       <button type="button" className="a-btn primary big a-new" onClick={() => setEditing('new')}>
         + Cargar prenda nueva
       </button>
@@ -299,6 +323,8 @@ export default function AdminApp() {
             ))}
           </ul>
         </>
+      )}
+      </>
       )}
       {toast && (
         <div className="a-toast" role="status">
