@@ -1,3 +1,4 @@
+import { resolve } from 'node:path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -8,6 +9,8 @@ export default defineConfig({
     cssCodeSplit: true,
     chunkSizeWarningLimit: 900,
     rollupOptions: {
+      // dos páginas: la tienda (index.html) y el panel del local (admin.html → /admin)
+      input: { main: resolve(import.meta.dirname, 'index.html'), admin: resolve(import.meta.dirname, 'admin.html') },
       output: {
         // librerías en archivos propios: se cachean y no se vuelven a bajar en cada deploy
         manualChunks(id) {

@@ -21,11 +21,13 @@ const BOX_RATIO = 1.1 // proporción de la "caja" donde entra cada prenda (alto 
 
 export async function loadTextures(products) {
   const urls = [...new Set(products.flatMap((p) => [p.front, p.back]).filter(Boolean))]
-  await Assets.load(urls)
+  // una foto que no carga (borrada, sin internet) no frena al resto
+  await Promise.allSettled(urls.map((u) => Assets.load(u)))
   const map = {}
   for (const p of products) {
     const front = Assets.get(p.front)
-    const back = p.back ? Assets.get(p.back) : null
+    if (!front) continue
+    const back = p.back ? Assets.get(p.back) || null : null
     for (const t of [front, back]) {
       if (t && !t.source.autoGenerateMipmaps) {
         t.source.autoGenerateMipmaps = true
@@ -146,10 +148,12 @@ export class Rack {
   }
 
   async setProducts(products) {
-    this.products = products
+    const token = (this._setToken = (this._setToken || 0) + 1)
     const tex = await loadTextures(products)
-    if (this.destroyed || !this.app) return
+    // si mientras cargaba llegó otra lista (cambio de categoría, catálogo nuevo), gana la última
+    if (this.destroyed || !this.app || token !== this._setToken) return
     Object.assign(this.textures, tex)
+    this.products = products.filter((p) => tex[p.id])
     this.offset = 0
     this.target = 0
     this.vel = 0
@@ -222,9 +226,19 @@ export class Rack {
   }
 
   _build(drop) {
-    if (!this.app || !this.products.length || !this.hangerTex) return
+    if (!this.app || !this.hangerTex) return
     for (const s of this.slots) s.g.destroy()
     this.slots = []
+    if (!this.products.length) {
+      // perchero vacío (todavía no hay prendas cargadas en esta categoría): se ve solo el caño
+      const L0 = this._layout()
+      Object.assign(this, L0)
+      this.cx = L0.W / 2
+      this._drawRack(L0.W, L0.H, L0.mobile, L0.rodY)
+      this.centerKey = null
+      this.onCenter?.(null, "front")
+      return
+    }
     this.hoverCenter = false
 
     const L0 = this._layout()

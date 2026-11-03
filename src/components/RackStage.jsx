@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { COLLECTION_LABEL, COLLECTION_YEAR, SIZE_ORDER, formatPrice } from '../data/products.js'
 import { useCart } from '../store/cart.jsx'
-import { ArrowUpRight, CheckIcon, ChevronLeft, ChevronRight, PlusIcon, TurnIcon } from './icons.jsx'
+import { ArrowUpRight, CheckIcon, ChevronLeft, ChevronRight, PlusIcon, RulerIcon, TurnIcon } from './icons.jsx'
 
 const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
-export default function RackStage({ products, headline, onSelect, frozen, apiRef }) {
+export default function RackStage({ products, headline, onSelect, frozen, apiRef, loading = false, waking = false }) {
   const hostRef = useRef(null)
   const rackRef = useRef(null)
   const editRef = useRef(null)
@@ -20,7 +20,8 @@ export default function RackStage({ products, headline, onSelect, frozen, apiRef
   picksRef.current = picks
   const [warn, setWarn] = useState(false)
   const [added, setAdded] = useState(false)
-  const { dispatch } = useCart()
+  const { lines, dispatch } = useCart()
+  const [noStock, setNoStock] = useState(false)
 
   // ---- motor del perchero (PixiJS se carga aparte) ----
   useEffect(() => {
@@ -35,7 +36,7 @@ export default function RackStage({ products, headline, onSelect, frozen, apiRef
         if (!alive) return
         rack = new Rack(hostRef.current, {
           onSelect: (p, side) => selectRef.current?.(p, side, picksRef.current[p.id]),
-          onCenter: (p, side) => setCenter({ p, side }),
+          onCenter: (p, side) => setCenter(p ? { p, side } : null),
           onLayout: setLayout,
           reducedMotion: reduced,
         })
@@ -130,6 +131,7 @@ export default function RackStage({ products, headline, onSelect, frozen, apiRef
   useEffect(() => {
     setWarn(false)
     setAdded(false)
+    setNoStock(false)
   }, [centerId])
 
   const p = center?.p
@@ -146,6 +148,13 @@ export default function RackStage({ products, headline, onSelect, frozen, apiRef
       rackRef.current?.holdCenter()
       return
     }
+    const inCart = lines.filter((l) => l.product.id === p.id && l.size === pick.size).reduce((a, l) => a + l.qty, 0)
+    if (inCart >= (p.sizes[pick.size] ?? 0)) {
+      setNoStock(true)
+      rackRef.current?.holdCenter()
+      return
+    }
+    setNoStock(false)
     dispatch({ type: 'add', product: p, size: pick.size, color, qty: 1 })
     setAdded(true)
     setWarn(false)
@@ -166,9 +175,14 @@ export default function RackStage({ products, headline, onSelect, frozen, apiRef
     <section className="stage" aria-label={headline.title}>
       <div className="stage-canvas" ref={hostRef} />
       <div className="beams" aria-hidden="true" />
-      {!ready && (
-        <p className="stage-loading" aria-hidden="true">
-          Colgando la ropa…
+      {(!ready || loading) && (
+        <p className="stage-loading" role="status">
+          {waking ? 'Abriendo el local… un momento' : 'Colgando la ropa…'}
+        </p>
+      )}
+      {ready && !loading && products.length === 0 && (
+        <p className="stage-loading" role="status">
+          Pronto vas a encontrar prendas nuevas acá.
         </p>
       )}
 
@@ -208,6 +222,9 @@ export default function RackStage({ products, headline, onSelect, frozen, apiRef
               {formatPrice(p.price)}
               {p.oldPrice && <s>{formatPrice(p.oldPrice)}</s>}
             </p>
+            <button type="button" className="ci-fit" onClick={() => onSelect(p, center.side, { ...pick, finder: true })}>
+              <RulerIcon size={17} /> ¿Qué talle soy?
+            </button>
             <div className="ci-controls">
             <div className="ci-options">
               {p.colors?.length > 1 && (
@@ -243,6 +260,7 @@ export default function RackStage({ products, headline, onSelect, frozen, apiRef
                       onClick={() => {
                         setPick({ size: sz })
                         setWarn(false)
+                        setNoStock(false)
                       }}
                     >
                       {sz}
@@ -265,6 +283,11 @@ export default function RackStage({ products, headline, onSelect, frozen, apiRef
             {warn && (
               <p className="ci-warn" role="alert">
                 Elegí tu talle para agregarla
+              </p>
+            )}
+            {noStock && (
+              <p className="ci-warn" role="alert">
+                Ya tenés en el carrito todas las del talle {pick.size}
               </p>
             )}
           </>

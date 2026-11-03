@@ -1,0 +1,31 @@
+# Render Blueprint: crea la API y la base de datos de prueba con un clic
+# (Render → New → Blueprint → elegir este repo)
+services:
+  - type: web
+    name: tienda-api
+    runtime: docker
+    plan: free
+    rootDir: api
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: DB_PROVIDER
+        value: postgres
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tienda-db
+          property: connectionString
+      - key: IMAGE_STORE
+        value: db
+      - key: JWT_KEY
+        generateValue: true
+      - key: ADMIN_PASSWORD
+        sync: false # la cargás vos en el panel de Render
+      - key: CORS_ORIGINS
+        sync: false # ej: https://tienda-ropa.vercel.app,http://localhost:5173
+
+databases:
+  - name: tienda-db
+    plan: free
+    databaseName: tienda
+    user: tienda

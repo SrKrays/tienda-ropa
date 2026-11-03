@@ -83,3 +83,9 @@ export const PlusIcon = () => (
     <path d="M12 5v14M5 12h14" />
   </svg>
 )
+export const RulerIcon = ({ size = 22 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...s} strokeWidth="1.8">
+    <path d="M3.5 15.5l12-12 5 5-12 12z" />
+    <path d="M7 12l2 2M9.5 9.5l1.5 1.5M12 7l2 2M14.5 4.5l1.5 1.5" />
+  </svg>
+)

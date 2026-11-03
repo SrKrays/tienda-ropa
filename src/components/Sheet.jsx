@@ -6,6 +6,14 @@ import { CloseIcon } from './icons.jsx'
 export default function Sheet({ open, onClose, label, children, tall = false }) {
   const reduce = useReducedMotion()
   const closeRef = useRef(null)
+  // El clic que abre el panel (tocar la prenda en el perchero) "rebotaba": el mismo clic
+  // caía sobre el fondo oscuro recién aparecido y lo cerraba. Ahora solo cierra si el
+  // toque EMPEZÓ sobre el fondo y pasó un instante desde que se abrió.
+  const downOnBackdrop = useRef(false)
+  const openedAt = useRef(0)
+  useEffect(() => {
+    if (open) openedAt.current = performance.now()
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -27,7 +35,14 @@ export default function Sheet({ open, onClose, label, children, tall = false }) 
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: reduce ? 0 : 0.25 }}
-          onClick={onClose}
+          onPointerDown={(e) => {
+            downOnBackdrop.current = e.target === e.currentTarget
+          }}
+          onClick={(e) => {
+            const ok = downOnBackdrop.current && e.target === e.currentTarget && performance.now() - openedAt.current > 350
+            downOnBackdrop.current = false
+            if (ok) onClose()
+          }}
         >
           <motion.div
             className={'sheet' + (tall ? ' is-tall' : '')}
@@ -38,7 +53,6 @@ export default function Sheet({ open, onClose, label, children, tall = false }) 
             animate={reduce ? { opacity: 1 } : { y: 0 }}
             exit={reduce ? { opacity: 0 } : { y: '100%' }}
             transition={{ type: 'spring', stiffness: 260, damping: 32 }}
-            onClick={(e) => e.stopPropagation()}
           >
             <div className="sheet-head">
               <span className="sheet-grip" aria-hidden="true" />

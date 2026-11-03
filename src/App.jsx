@@ -8,7 +8,9 @@ const loadCheckout = () => import('./components/CheckoutSheet.jsx')
 const ProductSheet = lazy(loadProduct)
 const CheckoutSheet = lazy(loadCheckout)
 import BottomBar from './components/BottomBar.jsx'
-import { HEADLINES, PRODUCTS } from './data/products.js'
+import { HEADLINES } from './data/products.js'
+import { useCatalog } from './data/catalog.js'
+import { useCart } from './store/cart.jsx'
 
 export default function App() {
   const [category, setCategory] = useState('todo')
@@ -33,13 +35,20 @@ export default function App() {
     if (cartOpen) setUsedCart(true)
   }, [cartOpen])
 
-  const products = useMemo(
-    () => (category === 'todo' ? PRODUCTS : PRODUCTS.filter((p) => p.categories.includes(category))),
-    [category]
-  )
+  const { products: catalog, status } = useCatalog()
+  const { dispatch } = useCart()
+  // el carrito guardado se actualiza con los precios y datos nuevos (y saca lo que ya no está)
+  useEffect(() => {
+    if (catalog && status === 'ok') dispatch({ type: 'sync', products: catalog })
+  }, [catalog, status, dispatch])
+
+  const products = useMemo(() => {
+    if (!catalog) return []
+    return category === 'todo' ? catalog : catalog.filter((p) => p.categories.includes(category))
+  }, [catalog, category])
   const apiRef = useRef(null)
   const select = useCallback((p, side = 'front', pick) => {
-    setSel({ product: p, side: p.back ? side : 'front', size: pick?.size, color: pick?.color })
+    setSel({ product: p, side: p.back ? side : 'front', size: pick?.size, color: pick?.color, finder: !!pick?.finder })
     setProductOpen(true)
   }, [])
 
@@ -54,6 +63,8 @@ export default function App() {
           frozen={productOpen || cartOpen}
           headline={HEADLINES[category]}
           apiRef={apiRef}
+          loading={!catalog}
+          waking={status === 'waking'}
         />
       </main>
       <BottomBar onOpenCart={() => setCartOpen(true)} onExplore={() => apiRef.current?.explore()} />

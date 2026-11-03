@@ -2,6 +2,7 @@
 // En la versión real esto viene de la API (.NET) con lo que sube el dueño desde el admin:
 // fotos frente/espalda (con el fondo ya quitado), nombre, precio, talles con stock, categoría y etiqueta.
 // Si una prenda no tiene foto de espalda, `back: null` y no se muestra el botón de dar vuelta.
+// `fitType` / `measures`: guía de talles para la calculadora. `tryOn: false` oculta el probador.
 // `colors`: por ahora son de prueba y no cambian la foto. Con el admin, cada color tendrá sus fotos.
 // OJO: los precios son de ejemplo, solo para probar el carrito.
 
@@ -35,6 +36,7 @@ export const PRODUCTS = [
     tag: '-20%',
     categories: ['hombre', 'ofertas'],
     colors: [{ id: 'negro', name: 'Negro lavado', hex: '#2b2a28' }],
+    fitType: 'oversize', // tabla de talles (ver src/fit/sizing.js). Con medidas reales: measures: { S: {ancho, largo, manga}, ... }
     description: 'Remera de algodón con lavado vintage (washed). Calce oversize, cuello reforzado y estampa de calavera en el frente y la espalda.',
     sizes: { S: 4, M: 6, L: 3, XL: 0, XXL: 2 },
   },
@@ -45,6 +47,7 @@ export const PRODUCTS = [
     back: '/img/blanca-espalda.webp',
     price: 12900,
     categories: ['basicos', 'mujer', 'hombre'],
+    fitType: 'remera',
     colors: [
       { id: 'blanco', name: 'Blanco', hex: '#f4f2ec' },
       { id: 'negro', name: 'Negro', hex: '#1b1a18' },
@@ -61,6 +64,8 @@ export const PRODUCTS = [
     price: 39900,
     tag: 'NUEVO',
     categories: ['hombre', 'mujer'],
+    fitType: 'buzo',
+    tryOn: false, // el probador todavía no soporta capucha
     colors: [
       { id: 'crudo', name: 'Crudo', hex: '#ece6d8' },
       { id: 'negro', name: 'Negro', hex: '#1b1a18' },
@@ -76,6 +81,7 @@ export const PRODUCTS = [
     price: 54900,
     tag: 'ÚLTIMOS 3',
     categories: ['hombre'],
+    fitType: 'camiseta',
     colors: [
       { id: 'celeste', name: 'Celeste', hex: '#1f8fe0' },
       { id: 'blanca', name: 'Blanca', hex: '#f4f2ec' },

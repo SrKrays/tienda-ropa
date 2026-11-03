@@ -2,3 +2,7 @@ node_modules
 dist
 .DS_Store
 *.log
+api/**/bin
+api/**/obj
+.env
+.env.local

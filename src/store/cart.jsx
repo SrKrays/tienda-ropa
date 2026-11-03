@@ -19,6 +19,12 @@ function reducer(state, action) {
       return state.filter((l) => l.key !== action.key)
     case 'clear':
       return []
+    case 'sync': {
+      const byId = new Map(action.products.map((p) => [p.id, p]))
+      const next = state.filter((l) => byId.has(l.product.id)).map((l) => ({ ...l, product: byId.get(l.product.id) }))
+      const same = next.length === state.length && next.every((l, i) => l.product === state[i].product)
+      return same ? state : next
+    }
     default:
       return state
   }

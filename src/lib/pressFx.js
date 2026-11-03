@@ -2,7 +2,7 @@
 // y al soltar sale un halo suave. En celular los :active de CSS casi no se ven
 // (el tap es muy rápido), por eso lo manejamos con eventos y una duración mínima.
 
-const SELECTOR = 'button, a[href], label.option, [role="button"]'
+const SELECTOR = 'button, a[href], label.option, summary, [role="button"]'
 const MIN_PRESS = 140 // ms: aunque el tap sea instantáneo, la animación se llega a ver
 
 export function installPressFx() {
