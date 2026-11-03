@@ -25,6 +25,8 @@ public class AppDb(DbContextOptions<AppDb> options) : DbContext(options)
             e.Property(p => p.MeasuresJson).HasMaxLength(2000);
             e.Property(p => p.FrontUrl).HasMaxLength(400);
             e.Property(p => p.BackUrl).HasMaxLength(400);
+            e.Property(p => p.WornUrl).HasMaxLength(400);
+            e.Property(p => p.DetailUrl).HasMaxLength(400);
             e.HasIndex(p => p.SortOrder);
         });
         b.Entity<Order>(e =>

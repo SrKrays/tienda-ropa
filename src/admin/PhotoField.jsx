@@ -3,7 +3,7 @@ import { cutout, loadBitmap } from './cutout.js'
 
 // Campo de foto: elegir (o sacar con el celu) → se recorta el fondo solo → vista previa.
 // value = { blob, url, removed, coverage } cuando hay foto nueva; existing = URL de la foto ya guardada.
-export default function PhotoField({ label, hint, required, existing, value, onChange, onRemove }) {
+export default function PhotoField({ label, hint, required, existing, value, onChange, onRemove, keepBackground = false }) {
   const input = useRef(null)
   const srcRef = useRef(null)
   const [busy, setBusy] = useState(false)
@@ -43,8 +43,8 @@ export default function PhotoField({ label, hint, required, existing, value, onC
       return
     }
     setTol(50)
-    setRemoveBg(true)
-    run({ tol: 50, removeBg: true })
+    setRemoveBg(!keepBackground)
+    run({ tol: 50, removeBg: !keepBackground })
   }
 
   // el control deslizante recalcula cuando se suelta (no en cada píxel)
@@ -83,7 +83,7 @@ export default function PhotoField({ label, hint, required, existing, value, onC
             <small>o sacala con el celular</small>
           </button>
         )}
-        {busy && <span className="photo-busy">Recortando el fondo…</span>}
+        {busy && <span className="photo-busy">{keepBackground ? 'Preparando la foto…' : 'Recortando el fondo…'}</span>}
       </div>
 
       <input
@@ -108,7 +108,7 @@ export default function PhotoField({ label, hint, required, existing, value, onC
         </p>
       )}
 
-      {value && !value.alreadyClear && (
+      {value && !value.alreadyClear && !keepBackground && (
         <div className="photo-tools">
           <label className="a-check">
             <input

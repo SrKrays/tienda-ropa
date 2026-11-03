@@ -201,8 +201,7 @@ export default function AdminApp() {
             sizes: d.sizes,
             active: true,
           },
-          await blob(d.front),
-          await blob(d.back)
+          { front: await blob(d.front), back: await blob(d.back) }
         )
       }
       await load()

@@ -12,13 +12,13 @@ public record MeasureDto(int Ancho, int Largo, int Manga);
 public record ProductDto(
     string Id, string Name, string Description, int Price, int? OldPrice, string? Tag,
     string[] Categories, string FitType, bool TryOn, ColorDto[] Colors, Dictionary<string, int> Sizes,
-    Dictionary<string, MeasureDto>? Measures, string Front, string? Back, bool Active, int Order);
+    Dictionary<string, MeasureDto>? Measures, string Front, string? Back, string? Worn, string? Detail, bool Active, int Order);
 
 // Lo que manda el formulario del admin (campo "data" del multipart)
 public record ProductInput(
     string Name, string? Description, int Price, int? OldPrice, string? Tag, string[]? Categories,
     string? FitType, bool? TryOn, ColorDto[]? Colors, Dictionary<string, int>? Sizes,
-    Dictionary<string, MeasureDto>? Measures, bool? Active, bool? RemoveBack);
+    Dictionary<string, MeasureDto>? Measures, bool? Active, bool? RemoveBack, bool? RemoveWorn = null, bool? RemoveDetail = null);
 
 public static partial class ProductMap
 {
@@ -34,7 +34,7 @@ public static partial class ProductMap
         JsonSerializer.Deserialize<ColorDto[]>(p.ColorsJson, Json) ?? [],
         JsonSerializer.Deserialize<Dictionary<string, int>>(p.SizesJson, Json) ?? [],
         p.MeasuresJson is null ? null : JsonSerializer.Deserialize<Dictionary<string, MeasureDto>>(p.MeasuresJson, Json),
-        p.FrontUrl, p.BackUrl, p.Active, p.SortOrder);
+        p.FrontUrl, p.BackUrl, p.WornUrl, p.DetailUrl, p.Active, p.SortOrder);
 
     // Valida y copia los datos del formulario a la prenda. Devuelve los errores en castellano simple.
     public static List<string> Apply(ProductInput i, Product p)

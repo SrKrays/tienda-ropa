@@ -69,11 +69,11 @@ export async function login(password) {
 export const listProducts = () => call('/api/admin/products')
 
 // data = datos de la prenda; front/back = Blob ya recortado (o null si no cambió)
-export function saveProduct(id, data, front, back) {
+export function saveProduct(id, data, files = {}) {
   const form = new FormData()
   form.append('data', JSON.stringify(data))
-  if (front) form.append('front', front, 'frente.' + (front.type === 'image/png' ? 'png' : 'webp'))
-  if (back) form.append('back', back, 'espalda.' + (back.type === 'image/png' ? 'png' : 'webp'))
+  // front / back / worn / detail: Blob ya procesado (o nada si no cambió)
+  for (const [slot, blob] of Object.entries(files)) if (blob) form.append(slot, blob, slot + '.' + (blob.type === 'image/png' ? 'png' : 'webp'))
   return id ? call('/api/admin/products/' + encodeURIComponent(id), { method: 'PUT', form }) : call('/api/admin/products', { method: 'POST', form })
 }
 

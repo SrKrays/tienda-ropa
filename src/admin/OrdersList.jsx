@@ -80,7 +80,7 @@ export default function OrdersList({ onError }) {
               <b>{o.customerName}</b> · {o.phone}
               <br />
               <small>
-                {o.delivery === 'envio' ? `Envío${o.address ? ': ' + o.address : ' (a coordinar)'}` : 'Retira en el local'} · {o.payment}
+                {o.delivery === 'envio' ? `Envío${o.address ? ': ' + o.address : ' (a coordinar)'}` : 'Lo retira / lo busca'} · {o.payment}
               </small>
             </p>
             <ul className="a-order-items">

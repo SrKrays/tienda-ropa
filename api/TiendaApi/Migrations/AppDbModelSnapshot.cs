@@ -138,6 +138,10 @@ namespace TiendaApi.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("varchar(2000)");
 
+                    b.Property<string>("DetailUrl")
+                        .HasMaxLength(400)
+                        .HasColumnType("varchar(400)");
+
                     b.Property<string>("FitType")
                         .IsRequired()
                         .HasMaxLength(24)
@@ -180,6 +184,10 @@ namespace TiendaApi.Migrations
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<string>("WornUrl")
+                        .HasMaxLength(400)
+                        .HasColumnType("varchar(400)");
 
                     b.HasKey("Id");
 

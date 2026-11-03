@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { getViewer } from '../rack/Viewer.js'
 import { SIZE_ORDER, WHATSAPP_NUMBER, formatPrice } from '../data/products.js'
 import { useCart } from '../store/cart.jsx'
-import { renderFit } from '../fit/FitRenderer.js'
+import FitDiagram from './FitDiagram.jsx'
 import { DEFAULT_PERSON, recommend } from '../fit/sizing.js'
 import Sheet from './Sheet.jsx'
 import SizeFinder from './SizeFinder.jsx'
@@ -26,22 +26,6 @@ function GarmentView({ product, startSide, side }) {
   return <div className="viewer" ref={host} />
 }
 
-// imagen de la prenda puesta en el maniquí (se calcula una vez y queda guardada)
-function useFit(product, view, size, person, side, enabled) {
-  const [url, setUrl] = useState(null)
-  useEffect(() => {
-    if (!enabled || !product) return
-    let alive = true
-    setUrl(null)
-    renderFit({ product, view, size, person, side }).then((u) => alive && setUrl(u))
-    return () => {
-      alive = false
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [product, view, size, side, enabled, person.height, person.weight, person.body, person.chest])
-  return url
-}
-
 const hasSaved = () => {
   try {
     return !!localStorage.getItem('mis-medidas')
@@ -58,15 +42,14 @@ const loadPerson = () => {
   }
 }
 
-function FitThumb({ product, view, side, size, person, label, active, onClick }) {
-  const url = useFit(product, view, size, person, side, true)
-  return (
-    <button type="button" className={'thumb' + (active ? ' is-on' : '')} aria-pressed={active} onClick={onClick}>
-      {url ? <img src={url} alt="" /> : <span className="thumb-loading" aria-hidden="true" />}
-      <span>{label}</span>
-    </button>
-  )
-}
+// miniatura del dibujo "Así te queda"
+const FitIcon = () => (
+  <svg viewBox="0 0 40 44" className="thumb-icon" aria-hidden="true">
+    <circle cx="20" cy="6" r="4.2" fill="#4a453a" />
+    <path d="M14 12h12l7 5-3 6-4-2v20H14V21l-4 2-3-6z" fill="#eedfc1" opacity=".75" />
+    <path d="M8 30h4M28 30h4" stroke="#d8c7a0" strokeWidth="1.4" />
+  </svg>
+)
 
 export default function ProductSheet({ sel, open, onClose, onGoToCart }) {
   const product = sel?.product
@@ -79,10 +62,10 @@ export default function ProductSheet({ sel, open, onClose, onGoToCart }) {
   const [added, setAdded] = useState(false)
   const [warn, setWarn] = useState(false)
   const [finder, setFinder] = useState(false)
+  const [compare, setCompare] = useState(null)
   const [person, setPersonState] = useState(loadPerson)
   const [saved, setSaved] = useState(hasSaved)
   const galleryRef = useRef(null)
-  const tryOn = product && product.tryOn !== false
 
   const setPerson = (p) => {
     setPersonState(p)
@@ -96,8 +79,8 @@ export default function ProductSheet({ sel, open, onClose, onGoToCart }) {
 
   useEffect(() => {
     if (!sel) return
-    const tryIt = sel.product.tryOn !== false
-    setView(sel.finder && tryIt ? 'calce' : 'colgada')
+    setView(sel.finder ? 'calce' : 'colgada')
+    setCompare(null)
     setSide(sel.side)
     setSize(sel.size || null)
     setColor(sel.color || sel.product.colors?.[0] || null)
@@ -119,9 +102,9 @@ export default function ProductSheet({ sel, open, onClose, onGoToCart }) {
     if (size && qty > Math.max(1, available)) setQty(Math.max(1, available))
   }, [size, available]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const mainView = view === 'calce' ? 'completo' : view
-  const mainSide = view === 'espalda' ? 'back' : 'front'
-  const mainUrl = useFit(product, mainView, shownSize, person, mainSide, tryOn && view !== 'colgada')
+  useEffect(() => {
+    if (compare === shownSize) setCompare(null)
+  }, [shownSize]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const pickSize = (s) => {
     if (stockOf(s) <= 0 && !finder) return
@@ -144,23 +127,19 @@ export default function ProductSheet({ sel, open, onClose, onGoToCart }) {
   const toggleFinder = () => {
     if (finder) {
       setFinder(false)
-      if (view === 'calce') setView(tryOn ? 'pecho' : 'colgada')
+      if (view === 'calce') setView('colgada')
     } else {
       setFinder(true)
-      if (tryOn) setView('calce')
+      setView('calce')
     }
   }
 
   const waText = product ? encodeURIComponent(`Hola! Quería consultar por "${product.name}"${size ? ' en talle ' + size : ''}.`) : ''
   const waHref = `https://wa.me/${WHATSAPP_NUMBER}?text=${waText}`
 
-  const thumbs = tryOn
-    ? [
-        { id: 'pecho', label: 'Puesta', side: 'front' },
-        product.back ? { id: 'espalda', label: 'Espalda', side: 'back' } : null,
-        { id: 'brazo', label: 'Manga', side: 'front' },
-      ].filter(Boolean)
-    : []
+  // fotos reales que sube el local (opcionales): la prenda puesta y un detalle
+  const photos = [product?.worn && { id: 'puesta', label: 'Puesta', src: product.worn }, product?.detail && { id: 'detalle', label: 'Detalle', src: product.detail }].filter(Boolean)
+  const photo = photos.find((p) => p.id === view)
 
   return (
     <Sheet open={open} onClose={onClose} label={product ? product.name : 'Prenda'} tall>
@@ -185,40 +164,31 @@ export default function ProductSheet({ sel, open, onClose, onGoToCart }) {
                     <TurnIcon /> Pasá el dedo o el mouse por la prenda para moverla
                   </p>
                 </>
-              ) : (
-                <figure className="fit-figure">
-                  {mainUrl ? <img src={mainUrl} alt={`${product.name} puesta en un maniquí, talle ${shownSize}`} /> : <span className="fit-loading">Probando la prenda…</span>}
-                  <figcaption>
-                    {view === 'calce' ? `Así te queda el talle ${shownSize}` : `Talle ${shownSize} en maniquí · ${person.height} cm`}
-                  </figcaption>
+              ) : photo ? (
+                <figure className="photo-figure">
+                  <img src={photo.src} alt={`${product.name}: ${photo.label.toLowerCase()}`} />
                 </figure>
+              ) : (
+                <FitDiagram product={product} person={person} size={shownSize} compare={compare} sizes={sizes} onCompare={setCompare} />
               )}
             </div>
 
-            {tryOn && (
-              <div className="thumbs" role="group" aria-label="Fotos de la prenda">
-                <button type="button" className={'thumb' + (view === 'colgada' ? ' is-on' : '')} aria-pressed={view === 'colgada'} onClick={() => setView('colgada')}>
-                  <img src={product.front} alt="" className="thumb-flat" />
-                  <span>Colgada</span>
+            <div className="thumbs" role="group" aria-label="Fotos de la prenda">
+              <button type="button" className={'thumb' + (view === 'colgada' ? ' is-on' : '')} aria-pressed={view === 'colgada'} onClick={() => setView('colgada')}>
+                <img src={product.front} alt="" className="thumb-flat" />
+                <span>Colgada</span>
+              </button>
+              {photos.map((p) => (
+                <button key={p.id} type="button" className={'thumb' + (view === p.id ? ' is-on' : '')} aria-pressed={view === p.id} onClick={() => setView(p.id)}>
+                  <img src={p.src} alt="" />
+                  <span>{p.label}</span>
                 </button>
-                {thumbs.map((t) => (
-                  <FitThumb
-                    key={t.id}
-                    product={product}
-                    view={t.id}
-                    side={t.side}
-                    size={shownSize}
-                    person={person}
-                    label={t.label}
-                    active={view === t.id}
-                    onClick={() => setView(t.id)}
-                  />
-                ))}
-                {finder && (
-                  <FitThumb product={product} view="completo" side="front" size={shownSize} person={person} label="Tu talle" active={view === 'calce'} onClick={() => setView('calce')} />
-                )}
-              </div>
-            )}
+              ))}
+              <button type="button" className={'thumb' + (view === 'calce' ? ' is-on' : '')} aria-pressed={view === 'calce'} onClick={() => setView('calce')}>
+                <FitIcon />
+                <span>Tu talle</span>
+              </button>
+            </div>
           </div>
 
           <div className="product-info">
@@ -313,11 +283,9 @@ export default function ProductSheet({ sel, open, onClose, onGoToCart }) {
                 size={size}
                 onPickSize={(s) => {
                   pickSize(s)
-                  if (tryOn) {
-                    setView('calce')
-                    // en celular la foto queda arriba: la mostramos para que se vea cómo queda
-                    if (window.innerWidth < 860) galleryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                  }
+                  setView('calce')
+                  // en celular el dibujo queda arriba: lo mostramos para que se vea cómo queda
+                  if (window.innerWidth < 860) galleryRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
                 }}
               />
             )}

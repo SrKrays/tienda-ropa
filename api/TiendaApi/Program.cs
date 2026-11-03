@@ -84,7 +84,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 // para que Render no la duerma (cron-job.org cada 10 min) y para chequear que anda
-app.MapGet("/health", () => Results.Ok(new { ok = true, time = DateTime.UtcNow }));
+app.MapMethods("/health", ["GET", "HEAD"], () => Results.Ok(new { ok = true, time = DateTime.UtcNow }));
 app.MapGet("/", () => Results.Text("Tienda API ✔"));
 
 app.MapAuthEndpoints();

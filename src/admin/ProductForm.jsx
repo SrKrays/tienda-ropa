@@ -59,6 +59,11 @@ export default function ProductForm({ product, onDone, onCancel }) {
   const [front, setFront] = useState(null)
   const [back, setBack] = useState(null)
   const [removeBack, setRemoveBack] = useState(false)
+  // fotos reales opcionales (con fondo): la prenda puesta y un detalle
+  const [worn, setWorn] = useState(null)
+  const [detail, setDetail] = useState(null)
+  const [removeWorn, setRemoveWorn] = useState(false)
+  const [removeDetail, setRemoveDetail] = useState(false)
   const [errors, setErrors] = useState([])
   const [saving, setSaving] = useState(false)
   const set = (k) => (v) => setF((s) => ({ ...s, [k]: v }))
@@ -106,10 +111,12 @@ export default function ProductForm({ product, onDone, onCancel }) {
       measures: Object.keys(measures).length ? measures : null,
       active: f.active,
       removeBack: removeBack && !back,
+      removeWorn: removeWorn && !worn,
+      removeDetail: removeDetail && !detail,
     }
     setSaving(true)
     try {
-      const saved = await saveProduct(product?.id, data, front?.blob, back?.blob)
+      const saved = await saveProduct(product?.id, data, { front: front?.blob, back: back?.blob, worn: worn?.blob, detail: detail?.blob })
       onDone(saved, !product)
     } catch (err) {
       setErrors(err.messages || ['No se pudo guardar. Probá de nuevo.'])
@@ -158,6 +165,39 @@ export default function ProductForm({ product, onDone, onCancel }) {
             onRemove={() => {
               setBack(null)
               setRemoveBack(true)
+            }}
+          />
+        </div>
+        <p className="a-tip a-tip-extra">
+          <strong>Fotos extra (opcionales):</strong> la prenda <strong>puesta</strong> (en un maniquí o una persona) y un <strong>detalle</strong> de la tela o la estampa. Estas se muestran tal cual, con su fondo.
+        </p>
+        <div className="a-photos">
+          <PhotoField
+            label="Foto puesta"
+            keepBackground
+            existing={removeWorn ? null : product?.worn}
+            value={worn}
+            onChange={(v) => {
+              setWorn(v)
+              setRemoveWorn(false)
+            }}
+            onRemove={() => {
+              setWorn(null)
+              setRemoveWorn(true)
+            }}
+          />
+          <PhotoField
+            label="Foto de detalle"
+            keepBackground
+            existing={removeDetail ? null : product?.detail}
+            value={detail}
+            onChange={(v) => {
+              setDetail(v)
+              setRemoveDetail(false)
+            }}
+            onRemove={() => {
+              setDetail(null)
+              setRemoveDetail(true)
             }}
           />
         </div>
@@ -249,7 +289,6 @@ export default function ProductForm({ product, onDone, onCancel }) {
             <span className="field-label">Tipo de prenda</span>
             <select value={f.fitType} onChange={(e) => {
               set('fitType')(e.target.value)
-              if (e.target.value === 'buzo') set('tryOn')(false)
             }}>
               {FITS.map(([id, label]) => (
                 <option key={id} value={id}>
@@ -298,14 +337,6 @@ export default function ProductForm({ product, onDone, onCancel }) {
             </button>
           )}
         </fieldset>
-
-        <label className="a-check big">
-          <input type="checkbox" checked={f.tryOn} onChange={(e) => set('tryOn')(e.target.checked)} />
-          <span>
-            Mostrar "probador" (la prenda puesta en el maniquí)
-            <small>Funciona con remeras y camisetas. Con buzos con capucha, mejor apagado.</small>
-          </span>
-        </label>
 
         <fieldset className="a-fieldset">
           <legend className="field-label">

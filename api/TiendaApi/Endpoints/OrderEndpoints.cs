@@ -102,7 +102,7 @@ public static class OrderEndpoints
         }).RequireRateLimiting("orders").DisableAntiforgery();
 
         // Página del pedido (la que abre el local desde WhatsApp). Tiene las etiquetas og: para la vista previa.
-        app.MapGet("/o/{code}", async (string code, HttpRequest req, AppDb db, IConfiguration cfg, CancellationToken ct) =>
+        app.MapMethods("/o/{code}", ["GET", "HEAD"], async (string code, HttpRequest req, AppDb db, IConfiguration cfg, CancellationToken ct) =>
         {
             var o = await db.Orders.AsNoTracking().FirstOrDefaultAsync(x => x.Id == code.ToUpperInvariant(), ct);
             if (o is null) return Results.Content(Page("Pedido no encontrado", "<p class=muted>Este pedido no existe o ya se borró.</p>", null, null), "text/html; charset=utf-8", statusCode: 404);
@@ -168,7 +168,7 @@ public static class OrderEndpoints
         var sb = new StringBuilder();
         sb.Append($"<p class=kicker>Pedido <b>#{H(o.Id)}</b> · {o.CreatedAt.AddHours(-3):dd/MM HH:mm}</p>");
         sb.Append($"<h1>{H(o.CustomerName)}</h1><p class=muted><a href=\"tel:{H(new string(o.Phone.Where(c => char.IsDigit(c) || c == '+').ToArray()))}\">{H(o.Phone)}</a> · ");
-        sb.Append(o.Delivery == "envio" ? $"Envío a domicilio{(o.Address is null ? " (dirección a coordinar)" : ": " + H(o.Address))}" : "Retira en el local");
+        sb.Append(o.Delivery == "envio" ? $"Envío a domicilio{(o.Address is null ? " (dirección a coordinar)" : ": " + H(o.Address))}" : "Lo retira / lo busca (a coordinar)");
         sb.Append($" · Paga con {H(o.Payment)}</p>");
         if (o.CustomerMeasures is not null) sb.Append($"<p class=meas>Sus medidas: {H(o.CustomerMeasures)}</p>");
         sb.Append("<ul>");

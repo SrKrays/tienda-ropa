@@ -15,6 +15,8 @@ export function normalize(p) {
     ...p,
     front: imgUrl(p.front),
     back: imgUrl(p.back),
+    worn: imgUrl(p.worn),
+    detail: imgUrl(p.detail),
     tag: p.tag || (p.oldPrice ? `-${Math.round((1 - p.price / p.oldPrice) * 100)}%` : null),
     categories: p.categories || [],
     colors: p.colors || [],

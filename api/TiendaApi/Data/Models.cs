@@ -18,6 +18,8 @@ public class Product
     public string? MeasuresJson { get; set; }
     public string FrontUrl { get; set; } = "";
     public string? BackUrl { get; set; }
+    public string? WornUrl { get; set; }   // foto opcional de la prenda puesta (real, con fondo)
+    public string? DetailUrl { get; set; } // foto opcional de un detalle (tela, estampa)
     public int SortOrder { get; set; }
     public bool Active { get; set; } = true;
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

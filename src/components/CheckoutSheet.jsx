@@ -14,7 +14,7 @@ const STEPS = ['Tu carrito', 'Tus datos', 'Enviar pedido']
 
 // Todo se coordina por WhatsApp: acá la persona solo cuenta qué prefiere
 const DELIVERY = [
-  { id: 'retiro', title: 'Retiro en el local', text: 'Te pasamos la dirección y el horario por WhatsApp.' },
+  { id: 'retiro', title: 'Lo retiro / lo busco', text: 'Coordinamos por WhatsApp dónde y cuándo pasás a buscarlo.' },
   { id: 'envio', title: 'Envío a domicilio', text: 'El costo y el día de entrega los coordinamos por WhatsApp.' },
 ]
 
@@ -34,7 +34,7 @@ const colorOf = (l) => (l.color && l.product.colors?.length > 1 ? l.color.name.t
 // Formato simple para quien atiende, como el de Bruzz:
 //   *PEDIDO [MARCA]* · 31/10 18:07
 //   Rosa Pérez · 351 123 4567
-//   *retira* en el local
+//   *lo retira* (coordinar dónde)
 //   pago: transferencia
 //
 //   *1x CAMISETA BELGRANO* — $ 54.900
@@ -44,7 +44,7 @@ const colorOf = (l) => (l.color && l.product.colors?.length > 1 ? l.color.name.t
 //   *TOTAL: $ 54.900*
 //
 //   mis medidas: 1,78 m · 75 kg · pecho ~96 cm · le gusta regular
-//   📸 fotos del pedido: https://…/o/K7P2QX   ← WhatsApp muestra la imagen de las prendas
+//   foto del pedido: https://…/o/K7P2QX   ← WhatsApp muestra la imagen de las prendas
 export function buildMessage(lines, total, data, { orderUrl, person } = {}) {
   const items = lines.map((l) => {
     const det = [`talle ${l.size}`, colorOf(l)].filter(Boolean).join(' · ')
@@ -55,7 +55,7 @@ export function buildMessage(lines, total, data, { orderUrl, person } = {}) {
   const entrega =
     data.delivery === 'envio'
       ? `*envío* a domicilio${data.address.trim() ? ': ' + data.address.trim() + (data.city.trim() ? ', ' + data.city.trim() : '') : ' (dirección a coordinar)'}`
-      : '*retira* en el local'
+      : '*lo retira* (coordinar dónde)'
   return [
     `*PEDIDO ${STORE_NAME}* · ${fecha()}`,
     `${data.name.trim()} · ${data.phone.trim()}`,
@@ -67,7 +67,7 @@ export function buildMessage(lines, total, data, { orderUrl, person } = {}) {
     '',
     data.delivery === 'envio' ? `*TOTAL: ${formatPrice(total)}* (+ envío a coordinar)` : `*TOTAL: ${formatPrice(total)}*`,
     person ? `\nmis medidas: ${person}` : null,
-    orderUrl ? `\n📸 fotos del pedido: ${orderUrl}` : null,
+    orderUrl ? `\nfoto del pedido: ${orderUrl}` : null,
   ]
     .filter((l) => l !== null)
     .join('\n')
@@ -347,7 +347,7 @@ export default function CheckoutSheet({ open, onClose }) {
                 </ul>
                 {step >= 1 && data.name.trim() && (
                   <p className="side-meta">
-                    {data.delivery === 'envio' ? 'Envío a domicilio' : 'Retira en el local'} ·{' '}
+                    {data.delivery === 'envio' ? 'Envío a domicilio' : 'Lo retira / lo busca'} ·{' '}
                     {PAYMENTS.find((p) => p.id === data.payment)?.title}
                   </p>
                 )}

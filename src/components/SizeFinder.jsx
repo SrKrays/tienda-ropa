@@ -187,7 +187,7 @@ export default function SizeFinder({ product, person, setPerson, size, onPickSiz
               )
             })}
           </ul>
-          <p className="sf-note">Tocá un talle para elegirlo y verlo puesto en el maniquí. Medidas de la prenda estirada: ancho de axila a axila, largo desde el hombro.</p>
+          <p className="sf-note">Tocá un talle para elegirlo y ver en el dibujo cómo te queda. Medidas de la prenda estirada: ancho de axila a axila, largo desde el hombro.</p>
         </>
       )}
     </section>
